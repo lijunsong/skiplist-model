@@ -1,6 +1,8 @@
 open util/ordering[Time]
 open value
 
+sig Stuff {}
+
 sig Time {}
 
 sig Node {
