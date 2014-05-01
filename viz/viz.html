@@ -1,0 +1,285 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>SkipList</title>
+    <style>
+
+.cell {
+  stroke: #fff;
+  stroke-width: 1.5px;
+  cursor: move;
+}
+
+.group {
+  stroke: #fff;
+  stroke-width: 1.5px;
+/*  cursor: move; */
+  opacity: 0.7;
+}
+
+.link {
+  stroke: #7a4e4e;
+  stroke-width: 2px;
+  stroke-opacity: 1;
+}
+
+.label {
+    fill: white;
+    font-family: Verdana;
+    font-size: 25px;
+    text-anchor: middle;
+    /*cursor: move;*/
+}
+
+.groupname {
+    fill: blue;
+    font-family: Verdana;
+    font-size: 17px;
+    text-anchor: middle;
+}
+
+#container {
+    width: 700px;
+    margin: 0 auto;
+}
+svg {
+    border: 1px dotted;
+}
+.title{
+    text-align: center;
+    margin-bottom: 100px;
+}
+</style>
+</head>
+<body>
+<div class="title">
+    <h1>SkipList Viz</h1>
+    <p>Last update: <span id="last-update"></span></p>
+</div>
+
+<div id="error"></div>
+<div id="container">
+</div>
+
+<script src="./d3/d3.js"></script>
+<script src="parse.js"></script>
+<script>
+var width = document.getElementById("container").offsetWidth, 
+    height = 500, baseline = 300;
+var boxwidth = 48, boxhight = 40;
+
+var color = d3.scale.category20();
+var filename = "data.txt";
+var contents = "";
+
+show_all_graph(get_env(filename));
+update_timeinfo();
+
+setInterval(interval_running, 1000);
+function update_timeinfo() {
+    var cur = new Date();
+    document.getElementById("last-update").innerHTML =
+        cur.getHours() + ":" + cur.getMinutes() + ":" +
+        cur.getSeconds() + ":" + cur.getMilliseconds();
+}
+
+function interval_running () {
+    var newcontents = get_text("data.txt");
+    if (newcontents == contents) {
+        console.log("no change. return");
+        return null;
+    }
+    //console.log("get new");
+    contents = newcontents;
+    var lines = contents.split('\n');
+    var env = parse_lines(lines);
+    //console.log(env);
+    show_all_graph(env);
+    console.log('change');
+    update_timeinfo();
+}
+
+function show_all_graph(env) {
+    function clean_div() {
+        var div = document.getElementById('container');
+        while(div.hasChildNodes()) {
+            div.removeChild(div.firstChild);
+        }
+    }
+    clean_div();
+
+    var times = env["this/Time"];
+    if (times.length == 0) {
+        document.getElementById("error").innerHTML = "No Time is found.";
+        return;
+    }
+    times.forEach(function (t) {
+        show_graph_of_time(env, t);
+    });
+}
+
+function show_graph_of_time(env, t) {
+    var graph = build_nodes_links_groups(env, t);
+    viz(graph);
+    var container = document.getElementById("container");
+    var div = document.createElement('div');
+    div.innerHTML = "<p style='text-align:center; font-size: 20px; margin-bottom: 100px;'>"+t+"</p>";
+    container.appendChild(div);
+}
+function viz(graph) {
+    // Compute the distinct nodes from the links.
+    graph.links.forEach(function(link) {
+      link.source = graph.nodes[link.source];
+      link.target = graph.nodes[link.target];
+    });
+
+    var svg = d3.select("#container").append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+    svg.append('svg:defs').append('svg:marker')
+            .attr('id', 'Arrow')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 1)
+            .attr('refY', 5)
+            .attr('markerWidth', 4)
+            .attr('markerHeight', 4)
+            .attr('orient', 'auto')
+            .append('svg:path')
+            .attr('d', "M 0 0 L 10 5 L 0 10 z");
+
+    function get_groupobj(name) {
+        var groups = graph.groups;
+        for(i = 0; i < groups.length; i++) {
+            if (groups[i].groupname == name)
+                return groups[i];
+        }
+        return null;
+    }
+
+    // arrange group x position. group does not have y position
+    graph.groups.forEach(function(g, i) {
+        var unit = width / (graph.groups.length+1);
+        g.x = (i+1) * unit;
+        g.y = baseline + boxhight/1.5;
+    });
+
+    // arrange nodes x, y. insert width and height
+    graph.nodes.forEach(function(node, i) {
+        node.width = boxwidth;
+        node.height = boxhight;
+
+        var g = get_groupobj(node.groupname);
+        if (g == null) { // floating node
+            node.x = width - boxwidth;
+            node.y = baseline - boxhight;
+        } else {
+            node.x = g.x;
+            node.y = baseline - (node.level+1) * boxhight;
+        }
+    });
+
+    /*
+    var force = d3.layout.force()
+        .nodes(graph.nodes)
+        .links(graph.links)
+        .size([width, baseline])
+        .linkDistance(200)
+        .charge(-300)
+        //.on("tick", tick)
+        .start();
+        */
+
+    var cell = svg.append("g").selectAll("rect")
+            .data(graph.nodes)
+            .enter().append("rect")
+            .attr("class", "cell")
+            .attr("width", function (d) { return d.width; })
+            .attr("height", function (d) { return d.height; })
+            .attr("x", function (d) { return d.x; })
+            .attr("y", function (d) { return d.y; })
+            .attr("rx", 8).attr("ry", 8)
+            .style("fill", color(2));
+            //.call(force.drag);
+
+    var label = svg.append("g").selectAll("text")
+            .data(graph.nodes)
+            .enter().append("text")
+            .attr("class", "label")
+            .attr("x", function (d) { return d.x+d.width/2; })
+            .attr("y", function (d) { return d.y+d.height/2+10; })
+            .text(function (d) { return d.name; });
+
+
+    var link = svg.selectAll("line")
+            .data(graph.links)
+            .enter().append("line")
+            .attr("class", "link")
+            .attr("x1", function(d) { return d.source.x + d.source.width/4.0*3; })
+            .attr("y1", function(d) { return d.source.y + d.source.height/2; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y + d.target.height/2; })
+            .attr("marker-end", "url(#Arrow)")
+            .style("stroke", 'black');
+
+    var groupname = svg.append("g").selectAll("text")
+            .data(graph.groups)
+            .enter().append("text")
+            .attr("class", "groupname")
+            .attr("x", function(d) { return d.x+boxwidth/2;})
+            .attr("y", function(d) { return d.y; })
+            .text(function (d) { return d.groupname});
+
+    // show threads
+    var threads = svg.append("g").selectAll("circle")
+            .data(graph.threads)
+            .enter().append("circle")
+            .attr("class", "threads")
+            .attr("cx", function(d,i) {
+                var groupobj = get_groupobj(d.groupname);
+                return groupobj.x; // shift with each other
+            })
+            .attr("cy", function(d, i) {
+                var groupobj = get_groupobj(d.groupname);
+                return groupobj.y+boxhight/2+(i+1)*5; // shift with each other
+            })
+            .attr('r', 5)
+            .style('fill', function (d) { 
+                var n = d.name.match(/Thread\$(\d+)/)[1];
+                console.log(n);
+                return color(+n)
+            });
+
+    var threads1 = svg.append("g").selectAll("text")
+            .data(graph.threads)
+            .enter().append("text")
+            .attr("class", "threads1")
+            .attr("x", function(d,i) {
+                var groupobj = get_groupobj(d.groupname);
+                return groupobj.x; // shift with each other
+            })
+            .attr("y", function(d, i) {
+                var groupobj = get_groupobj(d.groupname);
+                return groupobj.y+boxhight/2+(i+1)*5; // shift with each other
+            })
+            .text(function(d){return d.name;});
+
+    function tick () {
+        //cell.attr("transform", transform);
+    }
+    function transform(d) {
+        return "translate(" + d.x + "," + d.y + ")";
+    }
+}
+
+
+
+
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,35 @@
+{
+  "nodes" : [
+    {"name":"a", "level":0, "groupname": "HeadNode"},
+    {"name":"1", "level":1, "groupname": "HeadNode"},
+    {"name":"2", "level":2, "groupname": "HeadNode"},
+    {"name":"3", "level":3, "groupname": "HeadNode"},
+    {"name":"4", "level":0, "groupname": "node1"},
+    {"name":"5", "level":1, "groupname": "node1"},
+    {"name":"6", "level":0, "groupname": "TailNode"},
+    {"name":"7", "level":1, "groupname": "TailNode"},
+    {"name":"8", "level":2, "groupname": "TailNode"},
+    {"name":"9", "level":0, "groupname": "node2"}
+    ],
+
+  "links" : [
+    {"source" : 0, "target" : 4},
+    {"source" : 2, "target" : 8},
+    {"source" : 1, "target" : 5},
+    {"source" : 4, "target" : 6},
+    {"source" : 5, "target" : 7}
+    
+  ],
+
+   "groups" : [
+        {"groupname" : "HeadNode"},
+        {"groupname" : "node1"},
+        {"groupname" : "TailNode"},
+        {"groupname" : "node2"}
+   ],
+
+   "threads" : [
+        {"name": "Thread1", "groupname" : "HeadNode"},
+        {"name": "Thread2", "groupname" : "node1"}
+   ]
+}
