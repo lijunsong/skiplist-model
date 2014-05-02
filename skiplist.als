@@ -137,7 +137,9 @@ pred atomAddAndUnlock(t,t': Time, thr: Thread) {
 			}
 		}
 	}
-  some thr.op.t and no thr.op.t'
+  thr.op.t = AddLock and thr.op.t' = AddUnlock
+  noThreadsChangeExcept[t,t',thr]
+  SkipList.owns.t = SkipList.owns.t'
 }
 
 /* this function returns one predecessor node that is not locked by thread thr.
@@ -166,13 +168,14 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
 
 pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
     all n: thr.(SkipList.owns.t) | skipListNoChangeExceptRemoveLock[t,t',thr, n]
-    thr.op.t = AddUnlock
-    no thr.op.t'
+    thr.op.t = AddUnlock and no thr.op.t'
+    noThreadsChangeExcept[t,t',thr]
 }
 
 /* for a thread should be blocked at time t', doNextAddOp will be false and 
- * the trace will select other instance satisfied doNextAddOp
+ * the trace will select other instances satisfying doNextAddOp
  */
+/* TODO: thr1, th2 add value1. thr1 in AddLock, thr2 in AddLock. thr1 add, and thr2 is in AddLock */
 pred doNextAddOp(t,t': Time, thrs: Thread) {
     all thr: thrs |
     thr.op.t = AddFind implies {
@@ -188,10 +191,10 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
         // thr.op.'t should be changed to addUnlock in this case
         areAllPredsLockedBy[t, thr] implies
             atomAddAndUnlock[t, t', thr]
-            //atomUnlockAndFinish[t,t',thr]
         else 
             atomLockOneNode[t,t',thr]
-    } else thr.op.t = AddUnlock implies {
+    } else  {
+        thr.op.t = AddUnlock
         atomUnlockAndFinish[t,t',thr]
     } 
 }
@@ -203,10 +206,8 @@ pred isThreadFinished(t: Time, thr: Thread) {
 pred trace {
     all t: Time-last | some thr: Thread | let t' = t.next {
         // TODO just trace some thr which are not finished.
-        isThreadFinished[t, thr] implies 
-            skipListNoChange[t, t'] and threadNoChange[t,t',thr]
-        else 
-            doNextAddOp[t, t', thr]
+        not isThreadFinished[t, thr] implies doNextAddOp[t, t', thr]
+        else skipListNoChange[t,t'] and threadsNoChange[t,t']
     }
 }
 
@@ -223,7 +224,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for 6 but exactly 1 Thread, exactly 10 Time, exactly 7 Value
+} for 6 but exactly 2 Thread, exactly 15 Time, exactly 7 Value
 
 
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
