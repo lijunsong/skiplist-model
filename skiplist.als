@@ -1,5 +1,9 @@
 open util/ordering[Time]
-open value
+open util/ordering[Value]
+
+sig Value{}
+sig N in Value {}
+fact { N = Value - first - last }
 
 sig Time {}
 
@@ -12,16 +16,13 @@ sig Node {
 }*/
 
 one sig HeadNode extends Node {} {
-	key = NInfty
-	//all t: Time | #(succs.t) = 5
-	@key.NInfty = this
+	key = first
 }
 
 
 one sig TailNode extends Node {} {
-	key = Infty
 	no succs
-	@key.Infty = this
+	key = last
 }
 
 abstract sig Operation {}
@@ -32,8 +33,8 @@ one sig AddUnlock extends Add {}
 
 sig Thread {
     op: Operation lone ->Time,
-    arg: Value
-} { NInfty not in arg and Infty not in arg }
+    arg: N
+} 
 
 one sig SkipList {
 	nodes: set Node->Time,
@@ -57,22 +58,25 @@ fun succsAtLevel(lv: Int, t: Time): set Node->Node {
 }
 
 fun nodesAtLevelLess(x: Value, lv: Int, t: Time): set Node {
-	{n: SkipList.nodes.t | n in HeadNode.*(succsAtLevel[lv, t]) and n.key in x.predv}
+	{n: SkipList.nodes.t | n in HeadNode.*(succsAtLevel[lv, t]) and n.key in prevs[x]}
 }
 
 fun valuePreds(x: Value, lv: Int, t: Time): seq Node {
-	{lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = maxVal[nodesAtLevelLess[x, lv', t].key]}
+	{lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = max[nodesAtLevelLess[x, lv', t].key]}
 }
 
 pred smallList {
-	some disj n1, n2, n3: Node - HeadNode - TailNode | 
+	some disj n1, n2, n3: Node - HeadNode - TailNode {
+    // headnode < n1 < n2 < n3 < tailnode
 		HeadNode->2->TailNode + HeadNode->1->n2 + n2->1->TailNode 
 			+ HeadNode->0->n1 + n1->0->n2 + n2->0->n3 + n3->0->TailNode + HeadNode->3->TailNode
      = succs.first
-		and
-		n3.key->n2.key + n2.key->n1.key in predv
-		and n3.key != n2.key and n2.key != n1.key
-		and some v1: Fin | v1 not in (n1+n2+n3).key and n3.key->v1 + v1->n2.key in predv
+
+    lt[n1.key, n2.key] and lt[n2.key, n3.key]
+    n3.key != n2.key and n2.key != n1.key
+    (n1+n2+n3).key in N
+		some v1: N | v1 not in (n1+n2+n3).key and lt[v1,n3.key] and lt[n2.key, v1]
+  }
 }
 
 pred threadNoChange(t,t': Time, thr: Thread) {
@@ -142,15 +146,9 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
     // locking successfully or getting blocked should depend on
     // SkipList.owns at time t.
     let node = nextNodeToLock[t, thr] {
-        some SkipList.owns.t.node implies {
-            // another thread holds the lock, this thread is blocked from t->t'
-            // TODO: this frame condition results in two states the same.
-            threadsNoChange[t,t']
-            skipListNoChange[t,t']
-        } else {// the thread gets the lock
-            skipListNoChangeExceptAddLock[t,t',thr,node]
-            threadsNoChange[t,t']
-        }
+        no SkipList.owns.t.node 
+        skipListNoChangeExceptAddLock[t,t',thr,node]
+        threadsNoChange[t,t']
     }
 }
 
@@ -160,6 +158,9 @@ pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
     no thr.op.t'
 }
 
+/* for a thread should be blocked at time t', doNextAddOp will be false and 
+ * the trace will select other instance satisfied doNextAddOp
+ */
 pred doNextAddOp(t,t': Time, thrs: Thread) {
     all thr: thrs |
     thr.op.t = AddFind implies {
@@ -210,10 +211,8 @@ pred init {
 run { 
     init[]
     trace[]
-} for 6 but exactly 3 Thread, exactly 15 Time, exactly 10 Value
+} for 6 but exactly 1 Thread, exactly 5 Time, exactly 7 Value
 
-
-run { smallList } for 7 but 2 Thread
 
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
 	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
