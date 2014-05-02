@@ -126,6 +126,18 @@ pred areAllPredsLockedBy(t: Time, thr: Thread) {
 }
 
 pred atomAddAndUnlock(t,t': Time, thr: Thread) {
+	some n: Node - SkipList.nodes.t {
+		n.key = thr.arg
+		let xPreds = valuePreds[thr.arg, 2, t] {
+			//(~xPreds)->n->t' in succs // Link predecessors
+			let xSuccs = succsOfPreds[xPreds, t] {
+			//	n->xSuccs->t' in succs // Link successors
+				succs.t + n->xSuccs + (~xPreds)->n - outerJoin[xPreds, xSuccs] in succs.t'
+				SkipList.nodes.t' = SkipList.nodes.t + n
+			}
+		}
+	}
+  some thr.op.t and no thr.op.t'
 }
 
 /* this function returns one predecessor node that is not locked by thread thr.
@@ -175,13 +187,13 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
         // NOTE: thr.op.t' is not necessarily changed to Unlock
         // thr.op.'t should be changed to addUnlock in this case
         areAllPredsLockedBy[t, thr] implies
-            //atomAddAndUnlock[t, t', thr]
-            atomUnlockAndFinish[t,t',thr]
+            atomAddAndUnlock[t, t', thr]
+            //atomUnlockAndFinish[t,t',thr]
         else 
             atomLockOneNode[t,t',thr]
-    } /*else thr.op.t = AddUnlock implies {
+    } else thr.op.t = AddUnlock implies {
         atomUnlockAndFinish[t,t',thr]
-    } */
+    } 
 }
 
 pred isThreadFinished(t: Time, thr: Thread) {
@@ -211,7 +223,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for 6 but exactly 1 Thread, exactly 5 Time, exactly 7 Value
+} for 6 but exactly 1 Thread, exactly 10 Time, exactly 7 Value
 
 
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
@@ -222,23 +234,10 @@ fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
 	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
 }
 
-pred addNodeWithValue(x: Fin, t, t': Time) {
-	some n: Node - SkipList.nodes.t {
-		n.key = x
-		let xPreds = valuePreds[x, 2, t] {
-			//(~xPreds)->n->t' in succs // Link predecessors
-			let xSuccs = succsOfPreds[xPreds, t] {
-			//	n->xSuccs->t' in succs // Link successors
-				succs.t + n->xSuccs + (~xPreds)->n - outerJoin[xPreds, xSuccs] in succs.t'
-				SkipList.nodes.t' = SkipList.nodes.t + n
-			}
-		}
-	}
-}
-
-
+/*
 run {
 	smallList
 	no owns
-	some disj x, y: Fin | addNodeWithValue[x, first, first.next] and addNodeWithValue[y, first.next, first.next.next]
+	some disj x, y: N | addNodeWithValue[x, first, first.next] and addNodeWithValue[y, first.next, first.next.next]
 } for 8 but 2 Thread
+*/
