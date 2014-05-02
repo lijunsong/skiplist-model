@@ -38,7 +38,7 @@
     /*cursor: move;*/
 }
 
-.groupname {
+.groupname, .values{
     fill: blue;
     font-family: Verdana;
     font-size: 13px;
@@ -99,7 +99,7 @@
 <script>
 var width = document.getElementById("container").offsetWidth, 
     height = 400, baseline = 250;
-var boxwidth = 48, boxhight = 40;
+var boxwidth = 48, boxheight = 40;
 
 var color = d3.scale.category20();
 var filename = "data.txt";
@@ -241,21 +241,21 @@ function viz(graph, time_name) {
     graph.groups.forEach(function(g, i) {
         var unit = width / (graph.groups.length+2);
         g.x = (i+1) * unit;
-        g.y = baseline + boxhight/1.5;
+        g.y = baseline + boxheight/1.5;
     });
 
     // arrange nodes x, y. insert width and height
     graph.nodes.forEach(function(node, i) {
         node.width = boxwidth;
-        node.height = boxhight;
+        node.height = boxheight;
 
         var g = get_groupobj(node.groupname);
         if (g == null) { // floating node
             node.x = width - boxwidth;
-            node.y = baseline - boxhight;
+            node.y = baseline - boxheight;
         } else {
             node.x = g.x;
-            node.y = baseline - (node.level+1) * boxhight;
+            node.y = baseline - (node.level+1) * boxheight;
         }
     });
 
@@ -320,9 +320,16 @@ function viz(graph, time_name) {
             .attr("x", function(d) { return d.x+boxwidth/2;})
             .attr("y", function(d) { return d.y; })
             .text(function (d) { 
-                var name = d.groupname;
-                name += d.value;
-                return name;
+                return d.groupname;
+            });
+    var values = svg.append("g").selectAll("text")
+            .data(graph.groups)
+            .enter().append("text")
+            .attr("class", "values")
+            .attr("x", function(d) { return d.x+boxwidth/2;})
+            .attr("y", function(d) { return d.y+boxheight/2; })
+            .text(function (d) { 
+                return "("+d.value+")";
             });
 
     function get_lock_color(thread_name) {
@@ -340,7 +347,7 @@ function viz(graph, time_name) {
             })
             .attr("cy", function(d, i) {
                 var groupobj = get_groupobj(d.owns);
-                return groupobj.y+boxhight/2+(i+1)*20; // shift with each other
+                return groupobj.y+boxheight/2+(i+1)*20; // shift with each other
             })
             .attr('r', 10)
             .style('fill', function (d) { 
@@ -358,7 +365,7 @@ function viz(graph, time_name) {
             })
             .attr("y", function(d, i) {
                 var groupobj = get_groupobj(d.owns);
-                return groupobj.y+boxhight/2+(i+1)*20; // shift with each other
+                return groupobj.y+boxheight/2+(i+1)*20; // shift with each other
             })
             .text(function(d){
                 /*var name = d.name.match(/Thread\$(\d+)/)[1];
