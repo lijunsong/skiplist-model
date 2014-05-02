@@ -116,6 +116,15 @@ function build_nodes_links_groups(env, t) {
 	});
 
 	// build the group info
+	var nodes_values_list = env['this/Node<:key'];
+	var nodes_values = {}
+	nodes_values_list.forEach(function(nv) {
+		var lst = nv.split("->");
+		var node_name = lst[0];
+		var node_value = lst[1];
+		nodes_values[node_name] = node_value;
+	});
+
 	var inChainSet = {};
 	var nextNode = 'HeadNode$0';
 	var visited = {}
@@ -123,7 +132,8 @@ function build_nodes_links_groups(env, t) {
 		visited[nextNode] = 1;
 		if (inChainSet[nextNode] == null) {
 			inChainSet[nextNode] = 1;
-			groups.push({'groupname':nextNode});
+			groups.push({'groupname':nextNode, 
+						 "value" : nodes_values[nextNode]});
 		}
 		nextNode = level0[nextNode];		
 	} while (nextNode != null && ! visited[nextNode]);
