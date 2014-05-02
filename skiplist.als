@@ -5,8 +5,11 @@ sig Time {}
 
 sig Node {
 	succs: (seq Node) -> Time,
-	key: Value
-}
+	key: Value,
+//	height: Int
+} /*{
+	height >= 0 and height <= 3
+}*/
 
 one sig HeadNode extends Node {} {
 	key = NInfty
@@ -212,6 +215,31 @@ run {
 
 run { smallList } for 7 but 2 Thread
 
+fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
+	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
+}
+
+fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
+	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
+}
+
+pred addNodeWithValue(x: Fin, t, t': Time) {
+	some n: Node - SkipList.nodes.t {
+		n.key = x
+		let xPreds = valuePreds[x, 2, t] {
+			//(~xPreds)->n->t' in succs // Link predecessors
+			let xSuccs = succsOfPreds[xPreds, t] {
+			//	n->xSuccs->t' in succs // Link successors
+				succs.t + n->xSuccs + (~xPreds)->n - outerJoin[xPreds, xSuccs] in succs.t'
+				SkipList.nodes.t' = SkipList.nodes.t + n
+			}
+		}
+	}
+}
 
 
-
+run {
+	smallList
+	no owns
+	some disj x, y: Fin | addNodeWithValue[x, first, first.next] and addNodeWithValue[y, first.next, first.next.next]
+} for 8 but 2 Thread
