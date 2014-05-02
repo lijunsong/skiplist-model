@@ -28,8 +28,14 @@
         {"groupname" : "node2"}
    ],
 
-   "threads" : [
-        {"name": "Thread1", "groupname" : "HeadNode"},
-        {"name": "Thread2", "groupname" : "node1"}
+   "locks" : [
+        {"name": "Thread1", "owns" : "HeadNode", "op" : "AddFind", "arg" : "Value"},
+        {"name": "Thread2", "owns" : "node1", "op" : "AddFind", "arg" : "Value"}
+   ],
+
+    "threads" : [
+        {"name": "Thread1", "op" : "AddFind", "arg" : "Value"},
+        {"name": "Thread2", "op" : "AddFind", "arg" : "Value"},
+        {"name": "Thread3", "op" : "AddLock", "arg" : "Value"}
    ]
 }

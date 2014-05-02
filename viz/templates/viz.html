@@ -41,7 +41,7 @@
 .groupname {
     fill: blue;
     font-family: Verdana;
-    font-size: 17px;
+    font-size: 13px;
     text-anchor: middle;
 }
 
@@ -83,6 +83,9 @@
       <!-- Tab panes -->
       <div class="tab-content" id="graphs">
       </div>
+      <!-- other info -->
+      <div id="info" class="row">
+      </div>
 
     </div> <!-- end container -->
     <div id="footer">
@@ -95,7 +98,7 @@
 
 <script>
 var width = document.getElementById("container").offsetWidth, 
-    height = 300, baseline = 200;
+    height = 400, baseline = 250;
 var boxwidth = 48, boxhight = 40;
 
 var color = d3.scale.category20();
@@ -137,10 +140,14 @@ function clean_graphs() {
     while(div.hasChildNodes()) {
         div.removeChild(div.firstChild);
     }
-    var div = document.getElementById('time-step');
+    div = document.getElementById('time-step');
     while(div.hasChildNodes()) {
         div.removeChild(div.firstChild);
-    }    
+    }   
+    div = document.getElementById('info');
+    while(div.hasChildNodes()) {
+        div.removeChild(div.firstChild);
+    }  
 }
 
 function prepare_one_graph(timename) {
@@ -171,11 +178,18 @@ function show_all_graph(env) {
 function show_graph_of_time(env, t) {
     var graph = build_nodes_links_groups(env, t);
     var time_name = t.replace("$",'');
-    prepare_one_graph(time_name);
+    // prepare the DOM
+    prepare_one_graph(time_name); 
+    // add svg
     viz(graph, time_name);
+    // other graph info
+    show_info(graph, time_name);
     var container = document.getElementById("graphs");
 }
 
+function show_info(graph, time_name) {
+
+}
 function viz(graph, time_name) {
     // Compute the distinct nodes from the links.
     graph.links.forEach(function(link) {
@@ -186,6 +200,22 @@ function viz(graph, time_name) {
     var svg = d3.select("#"+time_name).append("svg")
         .attr("width", width)
         .attr("height", height);
+    var info = d3.select("#"+time_name).append("div")
+        .attr("class", "row");
+    // for lock
+    info.append("div")
+        .attr('class', 'col-md-4')
+        .attr('id', 'lock-info')
+        .append("h2")
+        .text("Locks Info");
+    var lock_info = info.select("#lock-info");
+    // for thread
+    info.append("div")
+        .attr('class', 'col-md-4')
+        .attr('id', 'thread-info')
+        .append('h2')
+        .text("Theads Info");
+    var thread_info = info.select("#thread-info");
 
     svg.append('svg:defs').append('svg:marker')
             .attr('id', 'Arrow')
@@ -240,6 +270,15 @@ function viz(graph, time_name) {
         .start();
         */
 
+    // cell's color should be the same with lock
+    function cell_color(node_name) {
+        for(var i = 0; i < graph.locks.length; i++) {
+            if (graph.locks[i].owns == node_name)
+                return get_lock_color(graph.locks[i].name);
+        }
+        return color(20);
+    }
+
     var cell = svg.append("g").selectAll("rect")
             .data(graph.nodes)
             .enter().append("rect")
@@ -249,7 +288,9 @@ function viz(graph, time_name) {
             .attr("x", function (d) { return d.x; })
             .attr("y", function (d) { return d.y; })
             .attr("rx", 8).attr("ry", 8)
-            .style("fill", color(2));
+            .style("fill", function (d) {
+                return cell_color(d.groupname);
+            });
             //.call(force.drag);
 
     var label = svg.append("g").selectAll("text")
@@ -280,39 +321,67 @@ function viz(graph, time_name) {
             .attr("y", function(d) { return d.y; })
             .text(function (d) { return d.groupname});
 
-    // show threads
-    var threads = svg.append("g").selectAll("circle")
-            .data(graph.threads)
+    function get_lock_color(thread_name) {
+        var n = thread_name.match(/Thread\$(\d+)/)[1];
+        return color(+n)
+    }
+    // show locks
+    var locks = svg.append("g").selectAll("circle")
+            .data(graph.locks)
             .enter().append("circle")
-            .attr("class", "threads")
+            .attr("class", "locks")
             .attr("cx", function(d,i) {
-                var groupobj = get_groupobj(d.groupname);
+                var groupobj = get_groupobj(d.owns);
                 return groupobj.x; // shift with each other
             })
             .attr("cy", function(d, i) {
-                var groupobj = get_groupobj(d.groupname);
-                return groupobj.y+boxhight/2+(i+1)*5; // shift with each other
+                var groupobj = get_groupobj(d.owns);
+                return groupobj.y+boxhight/2+(i+1)*20; // shift with each other
             })
-            .attr('r', 5)
+            .attr('r', 10)
             .style('fill', function (d) { 
-                var n = d.name.match(/Thread\$(\d+)/)[1];
-                console.log(n);
-                return color(+n)
+                return get_lock_color(d.name);
             });
 
-    var threads1 = svg.append("g").selectAll("text")
-            .data(graph.threads)
+    var locks1 = svg.append("g").selectAll("text")
+            .data(graph.locks)
             .enter().append("text")
-            .attr("class", "threads1")
+            .attr("class", "locks1")
+            .attr('width', 10)
             .attr("x", function(d,i) {
-                var groupobj = get_groupobj(d.groupname);
+                var groupobj = get_groupobj(d.owns);
                 return groupobj.x; // shift with each other
             })
             .attr("y", function(d, i) {
-                var groupobj = get_groupobj(d.groupname);
-                return groupobj.y+boxhight/2+(i+1)*5; // shift with each other
+                var groupobj = get_groupobj(d.owns);
+                return groupobj.y+boxhight/2+(i+1)*20; // shift with each other
             })
-            .text(function(d){return d.name;});
+            .text(function(d){
+                /*var name = d.name.match(/Thread\$(\d+)/)[1];
+                name = "T" + name;
+                name += "[" + d.op + "(" + d.arg + ")]";*/
+                return d.name;
+            });
+
+    lock_info
+         .selectAll("p")
+         .data(graph.locks)
+         .enter().append("p")
+         .text(function(d) {
+               var txt = d.name + ' owns: ' + d.owns;
+               txt += ' op: ' + d.op;
+               txt += ' arg: ' + d.arg;
+               return txt;
+          });
+    thread_info.selectAll("p")
+         .data(graph.threads)
+         .enter().append("p")
+         .text(function(d) {
+               var txt = d.name;
+               txt += ' op: ' + d.op;
+               txt += ' arg: ' + d.arg;
+               return txt;
+          });
 
     function tick () {
         //cell.attr("transform", transform);

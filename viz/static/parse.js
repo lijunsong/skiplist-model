@@ -55,10 +55,17 @@ function get_env(filename) {
 function get_relations_at_time(env, id, t) {
 	var rs = env[id];
 	var lst = [];
-	rs.forEach(function (r) {
-		if (r.indexOf(t) == -1)
-			return;
+	// if the relation does not involve time, return all
+	if (rs.length == 0)
+		return [];
 
+	if (rs[0].indexOf("Time") == -1)
+		return rs;
+
+	rs.forEach(function (r) {
+		var z = r.split("->");
+		if (z[z.length-1] != t)
+			return;
 		var new_r = r.replace("->"+t, '');
 		lst.push(new_r);
 	});
@@ -109,31 +116,60 @@ function build_nodes_links_groups(env, t) {
 	});
 
 	// build the group info
-	var inGroupSet = {};
+	var inChainSet = {};
 	var nextNode = 'HeadNode$0';
 	var visited = {}
 	do {
 		visited[nextNode] = 1;
-		if (inGroupSet[nextNode] == null) {
-			inGroupSet[nextNode] = 1;
+		if (inChainSet[nextNode] == null) {
+			inChainSet[nextNode] = 1;
 			groups.push({'groupname':nextNode});
 		}
 		nextNode = level0[nextNode];		
 	} while (nextNode != null && ! visited[nextNode]);
 
 	// build the threads info. filter out floating threads
+	var ops = get_relations_at_time(env, "this/Thread<:op", t);
+	var args = get_relations_at_time(env, "this/Thread<:arg", t);
+	var thread_list = env["this/Thread"]
+
+	var thread_ops = {};
+	var thread_args = {};
+	var threads = [];
+	args.forEach(function(arg) {
+		var lst = arg.split("->");
+		thread_args[lst[0]] = lst[1];
+	});
+	ops.forEach(function(op) {
+		var lst = op.split("->");
+		thread_ops[lst[0]] = lst[1].match(/(.*)\$\d+$/)[1];
+	});
+	thread_list.forEach(function(thr) {
+		var obj = { 'name' : thr,
+					'op' : thread_ops[thr],
+				    'arg' : thread_args[thr]}
+		threads.push(obj);
+	});
+
+
 	var rs = get_relations_at_time(env, "this/SkipList<:owns", t);
-	var threads = []
+	var locks = []
 	rs.forEach(function (r) {
 		var lst = r.split("->");
-		if (inGroupSet[lst[2]]) {
-			var obj = {'name': lst[1], 'groupname': lst[2]};
-			threads.push(obj);
+		var thread_name = lst[1];
+		var node_name = lst[2];
+		if (inChainSet[node_name]) {
+			var obj = {'name': thread_name, 
+					   'owns': node_name,
+					   'op' : thread_ops[thread_name],
+					   'arg' : thread_args[thread_name]};
+			locks.push(obj);
 		}
 	});
 	return { 'groups' : groups, 
 			 'links' : links, 
 			 'nodes' : nodes,
+			 'locks' : locks,
 			 'threads' : threads
 		   };
 }
