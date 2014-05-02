@@ -1,11 +1,15 @@
-
 <!DOCTYPE html>
-
 <html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <title>SkipList</title>
-    <style>
+  <head>
+    <meta charset="utf-8">
+    <title>SkipList Viz</title>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link href="sticky-footer.css" rel="stylesheet">
+    <script src="jquery.min.js"></script>
+    <script src="bootstrap.min.js"></script>
+    <script src="parse.js"></script>
+    <script src="d3/d3.js"></script>
+        <style>
 
 .cell {
   stroke: #fff;
@@ -41,34 +45,54 @@
     text-anchor: middle;
 }
 
-#container {
-    width: 700px;
-    margin: 0 auto;
-}
-svg {
-    border: 1px dotted;
-}
-.title{
-    text-align: center;
-    margin-bottom: 100px;
-}
 </style>
-</head>
-<body>
-<div class="title">
-    <h1>SkipList Viz</h1>
-    <p>Last update: <span id="last-update"></span></p>
-</div>
+  </head>
+  <!-- steal from bootstrap -->
+  
+  <body>
+    <!-- Begin page content -->
+    <div class="container" id="container">
+      <div class="page-header">
+        <h1>SkipList Viz<small class="pull-right"><button type="button" class="btn btn-sm btn-success" data-toggle="modal" data-target="#myModal">New Instance</button></small></h1>
+      </div>
 
-<div id="error"></div>
-<div id="container">
-</div>
+        <!-- Modal -->
+        <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h2 class="modal-title" id="myModalLabel">New Instance txt</h2>
+              </div>
+              <div class="modal-body">
+                <textarea class="form-control" rows="20"></textarea>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-<script src="./d3/d3.js"></script>
-<script src="parse.js"></script>
+      <ul class="nav nav-pills" id="time-step">
+      </ul>
+      <!-- Tab panes -->
+      <div class="tab-content" id="graphs">
+      </div>
+
+    </div> <!-- end container -->
+    <div id="footer">
+      <div class="container">
+        <p class="text-muted right">Last update: <span id="last-update"></span><span id="error"></span></p>
+      </div>
+    </div> <!-- end footer -->
+
+<!-- viz starts -->
+
 <script>
 var width = document.getElementById("container").offsetWidth, 
-    height = 500, baseline = 300;
+    height = 300, baseline = 200;
 var boxwidth = 48, boxhight = 40;
 
 var color = d3.scale.category20();
@@ -83,7 +107,7 @@ function update_timeinfo() {
     var cur = new Date();
     document.getElementById("last-update").innerHTML =
         cur.getHours() + ":" + cur.getMinutes() + ":" +
-        cur.getSeconds() + ":" + cur.getMilliseconds();
+        cur.getSeconds() + "." + cur.getMilliseconds();
 }
 
 function interval_running () {
@@ -102,15 +126,32 @@ function interval_running () {
     update_timeinfo();
 }
 
-function show_all_graph(env) {
-    function clean_div() {
-        var div = document.getElementById('container');
-        while(div.hasChildNodes()) {
-            div.removeChild(div.firstChild);
-        }
+function clean_graphs() {
+    var div = document.getElementById('graphs');
+    while(div.hasChildNodes()) {
+        div.removeChild(div.firstChild);
     }
-    clean_div();
+    var div = document.getElementById('time-step');
+    while(div.hasChildNodes()) {
+        div.removeChild(div.firstChild);
+    }    
+}
 
+function prepare_one_graph(timename) {
+    // create tabe panes
+    var div = document.createElement('div');
+    div.className = 'tab-pane';
+    div.id = timename;
+    document.getElementById("graphs").appendChild(div);
+
+    // create nav tab
+    var li = document.createElement('li');
+    li.innerHTML = '<a href=#' + timename + ' data-toggle="pill">' + timename + '</a>';
+    document.getElementById("time-step").appendChild(li);
+}
+
+function show_all_graph(env) {
+    clean_graphs();
     var times = env["this/Time"];
     if (times.length == 0) {
         document.getElementById("error").innerHTML = "No Time is found.";
@@ -123,20 +164,20 @@ function show_all_graph(env) {
 
 function show_graph_of_time(env, t) {
     var graph = build_nodes_links_groups(env, t);
-    viz(graph);
-    var container = document.getElementById("container");
-    var div = document.createElement('div');
-    div.innerHTML = "<p style='text-align:center; font-size: 20px; margin-bottom: 100px;'>"+t+"</p>";
-    container.appendChild(div);
+    var time_name = t.replace("$",'');
+    prepare_one_graph(time_name);
+    viz(graph, time_name);
+    var container = document.getElementById("graphs");
 }
-function viz(graph) {
+
+function viz(graph, time_name) {
     // Compute the distinct nodes from the links.
     graph.links.forEach(function(link) {
       link.source = graph.nodes[link.source];
       link.target = graph.nodes[link.target];
     });
 
-    var svg = d3.select("#container").append("svg")
+    var svg = d3.select("#"+time_name).append("svg")
         .attr("width", width)
         .attr("height", height);
 
@@ -162,7 +203,7 @@ function viz(graph) {
 
     // arrange group x position. group does not have y position
     graph.groups.forEach(function(g, i) {
-        var unit = width / (graph.groups.length+1);
+        var unit = width / (graph.groups.length+2);
         g.x = (i+1) * unit;
         g.y = baseline + boxhight/1.5;
     });
@@ -280,6 +321,14 @@ function viz(graph) {
 
 </script>
 
-</body>
+<!-- other script -->
+<script>
+  $(function () {
+    $('#time-step').tab('show')
+  })
+</script>
+
+  </body>
 </html>
+
 

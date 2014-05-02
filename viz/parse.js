@@ -131,7 +131,6 @@ function build_nodes_links_groups(env, t) {
 			threads.push(obj);
 		}
 	});
-	debugger;
 	return { 'groups' : groups, 
 			 'links' : links, 
 			 'nodes' : nodes,
