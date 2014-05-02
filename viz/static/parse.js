@@ -19,7 +19,7 @@ function parse_line(line) {
 
 	var c = line.split('=');
 	var id = c[0].trim();
-	var values = c[1].replace(/{|}| /g, "").split(",");
+	var values = c[1].trim().replace(/{|}| /g, "").split(",");
 	return {"id": id, "value": values};
 
 }
@@ -137,10 +137,14 @@ function build_nodes_links_groups(env, t) {
 	var thread_args = {};
 	var threads = [];
 	args.forEach(function(arg) {
+		if (arg == "")
+		    return;
 		var lst = arg.split("->");
 		thread_args[lst[0]] = lst[1];
 	});
 	ops.forEach(function(op) {
+		if (op == "")
+		    return;
 		var lst = op.split("->");
 		thread_ops[lst[0]] = lst[1].match(/(.*)\$\d+$/)[1];
 	});
