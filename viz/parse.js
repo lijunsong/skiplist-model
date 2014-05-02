@@ -104,14 +104,15 @@ function build_nodes_links_groups(env, t) {
 	// build the group info
 	var inGroupSet = {};
 	var nextNode = 'HeadNode$0';
-
+	var visited = {}
 	do {
+		visited[nextNode] = 1;
 		if (inGroupSet[nextNode] == null) {
 			inGroupSet[nextNode] = 1;
 			groups.push({'groupname':nextNode});
 		}
 		nextNode = level0[nextNode];		
-	} while (nextNode != null);
+	} while (nextNode != null && ! visited[nextNode]);
 
 	// build the threads info. filter out floating threads
 	var rs = get_relations_at_time(env, "this/SkipList<:owns", t);
