@@ -22,10 +22,10 @@
   ],
 
    "groups" : [
-        {"groupname" : "HeadNode"},
-        {"groupname" : "node1"},
-        {"groupname" : "TailNode"},
-        {"groupname" : "node2"}
+        {"groupname" : "HeadNode", "value" : "Value1"},
+        {"groupname" : "node1", "value" : "Value2"},
+        {"groupname" : "TailNode", "value" : "Value3"},
+        {"groupname" : "node2", "value" : "Value4"}
    ],
 
    "locks" : [

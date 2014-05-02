@@ -319,7 +319,11 @@ function viz(graph, time_name) {
             .attr("class", "groupname")
             .attr("x", function(d) { return d.x+boxwidth/2;})
             .attr("y", function(d) { return d.y; })
-            .text(function (d) { return d.groupname});
+            .text(function (d) { 
+                var name = d.groupname;
+                name += d.value;
+                return name;
+            });
 
     function get_lock_color(thread_name) {
         var n = thread_name.match(/Thread\$(\d+)/)[1];
