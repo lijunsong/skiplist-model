@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<projection> <type name="SkipList"/> <type name="Time"/> <type name="value/Value"/> </projection>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="Add"/>
+   <type name="AddFind"/>
+   <type name="AddLock"/>
+   <type name="AddUnlock"/>
+   <type name="HeadNode"/>
+   <type name="Int"/>
+   <type name="Operation"/>
+   <type name="SkipList"/>
+   <type name="String"/>
+   <type name="TailNode"/>
+   <type name="Time"/>
+   <type name="univ"/>
+   <type name="ordering/Ord"/>
+   <type name="seq/Int"/>
+   <type name="value/Fin"/>
+   <type name="value/Infty"/>
+   <type name="value/NInfty"/>
+   <type name="value/Value"/>
+   <set name="$init_thr" type="Thread"/>
+   <set name="$smallList_n1" type="Node"/>
+   <set name="$smallList_n2" type="Node"/>
+   <set name="$smallList_n3" type="Node"/>
+   <set name="$smallList_v1" type="value/Fin"/>
+   <set name="arg" type="Thread"/>
+   <set name="First" type="ordering/Ord"/>
+   <set name="key" type="Node"/>
+   <set name="Next" type="ordering/Ord"/>
+   <set name="nodes" type="Node"/>
+</node>
+
+<node shape="Trapezoid" color="Red">
+   <type name="Thread"/>
+</node>
+
+<node style="Bold" shape="Ellipse" color="Gray">
+   <type name="Node"/>
+</node>
+
+<edge style="Dashed">
+   <relation name="op"> <type name="Thread"/> <type name="Operation"/> </relation>
+</edge>
+
+</view>
+
+</alloy>
