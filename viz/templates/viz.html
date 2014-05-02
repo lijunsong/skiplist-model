@@ -418,14 +418,16 @@ function viz(graph, time_name) {
     var all_times = jQuery('#time-step li');
     var length = all_times.length;
     var active = jQuery('#time-step li.active');
-    if (active.length == 0)
-        return;
-    var active = active[0];
-    var time = active.childNodes[0].innerHTML;
-    var time_num = time.match(/Time(\d+)/)[1];
-    var next_time_num= time_num + 1;
+    var next_time_num = 0;
+    if (active.length != 0) {
+        var active = active[0];
+        var time = active.childNodes[0].innerHTML;
+        var time_num = time.match(/Time(\d+)/)[1];
+        var next_time_num= (+time_num) + 1;        
+    }
+
     if (direction == "left") {
-        next_time_num = time_num - 1;
+        next_time_num = (+time_num) - 1;
     }
     if (next_time_num >= all_times.length ||
         next_time_num < 0) {
