@@ -32,6 +32,13 @@ function parse_lines(lines) {
 			return;
 		env[obj.id] = obj.value;
 	});
+	// revise time ordering
+	var time = env["this/Time"];
+	time.sort(function(t1,t2) {
+		var t1_num = +(t1.match(/Time\$(\d+)/, t1)[1]);
+		var t2_num = +(t2.match(/Time\$(\d+)/, t2)[1]);
+		return t1_num - t2_num;
+	});
 	return env;
 }
 
