@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <title>SkipList Viz</title>
-    <link href="bootstrap.min.css" rel="stylesheet">
-    <link href="sticky-footer.css" rel="stylesheet">
-    <script src="jquery.min.js"></script>
-    <script src="bootstrap.min.js"></script>
-    <script src="parse.js"></script>
-    <script src="d3/d3.js"></script>
+    <link href="static/bootstrap.min.css" rel="stylesheet">
+    <link href="static/sticky-footer.css" rel="stylesheet">
+    <script src="static/jquery.min.js"></script>
+    <script src="static/bootstrap.min.js"></script>
+    <script src="static/parse.js"></script>
+    <script src="static/d3/d3.js"></script>
         <style>
 
 .cell {
@@ -64,17 +64,20 @@
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 <h2 class="modal-title" id="myModalLabel">New Instance txt</h2>
               </div>
-              <div class="modal-body">
-                <textarea class="form-control" rows="20"></textarea>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary">Save changes</button>
-              </div>
+              <form name="instance-txt" method="post" action="/save">
+                  <div class="modal-body">
+                    <textarea class="form-control" rows="20" name="input-text"></textarea>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <input type="submit" class="btn btn-primary" value="Submit" />
+                  </div>
+              </form>
             </div>
           </div>
         </div>
 
+     <div id="text-contents" style="display: none"></div>
       <ul class="nav nav-pills" id="time-step">
       </ul>
       <!-- Tab panes -->
@@ -102,7 +105,11 @@ var contents = "";
 show_all_graph(get_env(filename));
 update_timeinfo();
 
-setInterval(interval_running, 1000);
+setInterval(function() {
+    newcontents = get_text(filename);
+    update_graph(newcontents);
+}, 1000);
+
 function update_timeinfo() {
     var cur = new Date();
     document.getElementById("last-update").innerHTML =
@@ -110,9 +117,8 @@ function update_timeinfo() {
         cur.getSeconds() + "." + cur.getMilliseconds();
 }
 
-function interval_running () {
-    var newcontents = get_text("data.txt");
-    if (newcontents == contents) {
+function update_graph (newcontents) {
+    if (newcontents == '' || newcontents == contents) {
         console.log("no change. return");
         return null;
     }
