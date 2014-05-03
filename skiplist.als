@@ -132,7 +132,7 @@ pred atomAddAndUnlock(t,t': Time, thr: Thread) {
 			//(~xPreds)->n->t' in succs // Link predecessors
 			let xSuccs = succsOfPreds[xPreds, t] {
 			//	n->xSuccs->t' in succs // Link successors
-				succs.t + n->xSuccs + (~xPreds)->n - outerJoin[xPreds, xSuccs] in succs.t'
+				succs.t + n->xSuccs + (~xPreds)->n - outerJoin[xPreds, xSuccs] = succs.t'
 				SkipList.nodes.t' = SkipList.nodes.t + n
 			}
 		}
