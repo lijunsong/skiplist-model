@@ -13,9 +13,11 @@ function get_text(filename) {
 
 
 function parse_line(line) {
-	if (line.indexOf("skolem") != -1 ||
-		line.indexOf("=") == -1)
+	if (line.indexOf("=") == -1)
 		return null;
+	if (line.indexOf("skolem") != -1) {
+		line = line.replace('skolem ', '');
+	}
 
 	var c = line.split('=');
 	var id = c[0].trim();
@@ -180,11 +182,21 @@ function build_nodes_links_groups(env, t) {
 			locks.push(obj);
 		}
 	});
+
+	// build skolem info
+	var skolem = [];
+	for(var i in env) {
+		if (i[0] == '$') {
+			var obj = {'id': i, 'value': env[i]};
+			skolem.push(obj);
+		}
+	}
 	return { 'groups' : groups, 
 			 'links' : links, 
 			 'nodes' : nodes,
 			 'locks' : locks,
-			 'threads' : threads
+			 'threads' : threads,
+			 'skolem' : skolem
 		   };
 }
 

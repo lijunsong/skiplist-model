@@ -400,6 +400,34 @@ function viz(graph, time_name) {
                txt += ' arg: ' + d.arg;
                return txt;
           });
+    skolem_info.selectAll("p")
+         .data(graph.skolem)
+         .enter().append("p")
+         .text(function(d) {
+            // note: the skolem may be bound with time, not be bound with time
+            // or be bound with time but have no mapping of current time.
+            var id = d.id;
+            var values = d.value;
+            debugger;
+            if (d.value.length == 1) {
+                values = d.value[0];
+                return id + ' = ' + values;
+            } else {
+                var i = 0;
+                for (i = 0; i < values.length; i++) {
+                    var v = values[i];
+                    var time = v.match(/Time\$\d+/);
+                    if (time != null && time.length != 0) {
+                        time = time[time.length-1];
+                        if (time.replace('$','') == time_name) {  // the skolem is related with current time
+                            v = v.replace("->"+time, '');
+                            v = v.replace(time+"->", '');
+                            return id + ' = ' + v;
+                        }
+                    }
+                }
+            }
+         });
 
     function tick () {
         //cell.attr("transform", transform);
