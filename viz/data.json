@@ -1,3 +1,4 @@
+// the sample object for one particular time step.
 {
   "nodes" : [
     {"name":"a", "level":0, "groupname": "HeadNode"},
@@ -38,6 +39,11 @@
         {"name": "Thread2", "op" : "AddFind", "arg" : "Value"},
         {"name": "Thread3", "op" : "AddLock", "arg" : "Value"}
    ],
+
+    "threads-find" : [
+        {"name": "Thread1", "find" : "Node1->Node2"},
+        {"name": "Thread2", "find" : "Node3->Node4"}
+    ],
 
     "skolem" : [
         // get info from env directly

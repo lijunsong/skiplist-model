@@ -18,10 +18,11 @@ function parse_line(line) {
 	if (line.indexOf("skolem") != -1) {
 		line = line.replace('skolem ', '');
 	}
+    line = line.trim();
 
 	var c = line.split('=');
 	var id = c[0].trim();
-	var values = c[1].trim().replace(/{|}| /g, "").split(",");
+	var values = c[1].trim().replace(/{|}|\ /g, "").split(",");
 	return {"id": id, "value": values};
 
 }

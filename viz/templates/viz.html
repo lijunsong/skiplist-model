@@ -306,7 +306,19 @@ function viz(graph, time_name) {
             .attr("class", "label")
             .attr("x", function (d) { return d.x+d.width/2; })
             .attr("y", function (d) { return d.y+d.height/2+10; })
-            .text(function (d) { return d.name; });
+            .text(function (d) { 
+                var i = 0;
+                var node_value = "-1";
+                debugger;
+                for(i = 0; i < graph.groups.length; i++) {
+                    var g = graph.groups[i]; 
+                    if (g.groupname == d.groupname) {
+                        node_value = g.value.match(/.*(\d+)$/)[1];
+                        break;
+                    }
+                }
+                return node_value;
+            });
 
 
     var link = svg.selectAll("line")
