@@ -202,20 +202,27 @@ function viz(graph, time_name) {
         .attr("height", height);
     var info = d3.select("#"+time_name).append("div")
         .attr("class", "row");
-    // for lock
+    // for lock info
     info.append("div")
         .attr('class', 'col-md-4')
         .attr('id', 'lock-info')
         .append("h2")
         .text("Locks Info");
     var lock_info = info.select("#lock-info");
-    // for thread
+    // for thread info
     info.append("div")
         .attr('class', 'col-md-4')
         .attr('id', 'thread-info')
         .append('h2')
         .text("Theads Info");
     var thread_info = info.select("#thread-info");
+    // for skolem info
+    info.append("div")
+        .attr('class', 'col-md-4')
+        .attr('id', 'skolem-info')
+        .append('h2')
+        .text('Skolem Info');
+    var skolem_info = info.select("#skolem-info");
 
     svg.append('svg:defs').append('svg:marker')
             .attr('id', 'Arrow')

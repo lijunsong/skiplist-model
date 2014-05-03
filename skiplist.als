@@ -75,7 +75,7 @@ pred smallList {
     lt[n1.key, n2.key] and lt[n2.key, n3.key]
     n3.key != n2.key and n2.key != n1.key
     (n1+n2+n3).key in N
-		some v1: N | v1 not in (n1+n2+n3).key and lt[v1,n3.key] and lt[n2.key, v1]
+		//some v1: N | v1 not in (n1+n2+n3).key and lt[v1,n3.key] and lt[n2.key, v1]
   }
 }
 
@@ -172,10 +172,15 @@ pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
     noThreadsChangeExcept[t,t',thr]
 }
 
-/* for a thread should be blocked at time t', doNextAddOp will be false and 
- * the trace will select other instances satisfying doNextAddOp
+/* For doc: for a thread that should be blocked at time t', we can not explicitly
+ * offer an idle state for thread. We want doNextAddOp to be false and 
+ * the trace will select other instances satisfying doNextAddOp, and thus no
+ * consecutive states are the same.
  */
-/* TODO: thr1, th2 add value1. thr1 in AddLock, thr2 in AddLock. thr1 add, and thr2 is in AddLock */
+
+/* TODO: (maybe assert) thr1, th2 both add value1. thr1 step to AddLock at t1, thr2 
+ * step to AddLock at t2. thr1 add value1 at t3, and thr2 add value1 at t4. Now 
+ * multiple value1s exist in the list! */
 pred doNextAddOp(t,t': Time, thrs: Thread) {
     all thr: thrs |
     thr.op.t = AddFind implies {
@@ -202,12 +207,16 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
 pred isThreadFinished(t: Time, thr: Thread) {
     no thr.op.t
 }
-
+pred allFinishes(t,t': Time) {
+    all thr: Thread | isThreadFinished[t, thr]
+    threadsNoChange[t,t']
+    skipListNoChange[t,t']
+}
 pred trace {
     all t: Time-last | some thr: Thread | let t' = t.next {
         // TODO just trace some thr which are not finished.
-        not isThreadFinished[t, thr] implies doNextAddOp[t, t', thr]
-        else skipListNoChange[t,t'] and threadsNoChange[t,t']
+        (not isThreadFinished[t, thr] and doNextAddOp[t, t', thr])
+        or allFinishes[t,t']
     }
 }
 
@@ -221,10 +230,11 @@ pred init {
     some thr: Thread | thr.arg not in SkipList.nodes.first.key   
 }
 
+/* IMPORTANT: make sure the scopes for Value,Node,Thread are matched! */
 run { 
     init[]
     trace[]
-} for 6 but exactly 2 Thread, exactly 15 Time, exactly 7 Value
+} for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
 
 
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {

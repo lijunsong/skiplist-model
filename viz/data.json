@@ -37,5 +37,11 @@
         {"name": "Thread1", "op" : "AddFind", "arg" : "Value"},
         {"name": "Thread2", "op" : "AddFind", "arg" : "Value"},
         {"name": "Thread3", "op" : "AddLock", "arg" : "Value"}
-   ]
+   ],
+
+    "skolem" : [
+        // get info from env directly
+        {"id": "$trace_thr", "value": ["Time0->Thread0"]},
+        {"id": "$list_n1", "value": "node1"}
+    ]
 }
