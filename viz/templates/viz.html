@@ -39,7 +39,7 @@
 }
 
 .groupname, .values{
-    fill: blue;
+    fill: #2c2911;
     font-family: Verdana;
     font-size: 13px;
     text-anchor: middle;
@@ -283,7 +283,7 @@ function viz(graph, time_name) {
             if (graph.locks[i].owns == node_name)
                 return get_lock_color(graph.locks[i].name);
         }
-        return color(20);
+        return "#79B6B6";
     }
 
     var cell = svg.append("g").selectAll("rect")
@@ -309,7 +309,6 @@ function viz(graph, time_name) {
             .text(function (d) { 
                 var i = 0;
                 var node_value = "-1";
-                debugger;
                 for(i = 0; i < graph.groups.length; i++) {
                     var g = graph.groups[i]; 
                     if (g.groupname == d.groupname) {
@@ -397,6 +396,9 @@ function viz(graph, time_name) {
          .selectAll("p")
          .data(graph.locks)
          .enter().append("p")
+         .attr("style", function(d) {
+               return "color:"+get_lock_color(d.name);
+         })
          .text(function(d) {
                var txt = d.name + ' owns: ' + d.owns;
                txt += ' op: ' + d.op;
@@ -406,10 +408,14 @@ function viz(graph, time_name) {
     thread_info.selectAll("p")
          .data(graph.threads)
          .enter().append("p")
+         .attr("style", function(d) {
+               return "color:"+get_lock_color(d.name);
+         })
          .text(function(d) {
                var txt = d.name;
                txt += ' op: ' + d.op;
                txt += ' arg: ' + d.arg;
+               txt += ' find: ' + d.find;
                return txt;
           });
     skolem_info.selectAll("p")
@@ -420,7 +426,6 @@ function viz(graph, time_name) {
             // or be bound with time but have no mapping of current time.
             var id = d.id;
             var values = d.value;
-            debugger;
             if (d.value.length == 1) {
                 values = d.value[0];
                 return id + ' = ' + values;
@@ -460,7 +465,6 @@ function viz(graph, time_name) {
     $('#time-step').tab('show')
   })
   function change_time_step() {
-    console.log("here");
     var direction = "";
     switch (window.event.keyCode) {
         case 37: // left
