@@ -144,13 +144,16 @@ function build_nodes_links_groups(env, t) {
 	// build the threads info. filter out floating threads
 	var ops = get_relations_at_time(env, "this/Thread<:op", t);
 	var args = get_relations_at_time(env, "this/Thread<:arg", t);
+    var heights = env["this/Thread<:height"];
 	var thread_list = env["this/Thread"];
     var finds = get_relations_at_time(env, "this/Thread<:find", t);
 
 	var thread_ops = {};
 	var thread_args = {};
     var thread_find = {};
+    var thread_height = {};
 	var threads = [];
+
 	args.forEach(function(arg) {
 		if (arg == "")
 		    return;
@@ -173,16 +176,23 @@ function build_nodes_links_groups(env, t) {
         origin.push(f.replace(lst[0]+'->', ''));
         thread_find[lst[0]] = origin;
     });
-    
+    heights.forEach(function(f) {
+    	if (f == "")
+    		return;
+    	var lst = f.split("->");
+    	thread_height[lst[0]] = lst[1];
+    });
+    debugger;
 	thread_list.forEach(function(thr) {
 		var obj = { 'name' : thr,
 					'op' : thread_ops[thr],
 				    'arg' : thread_args[thr],
-                    'find' : thread_find[thr]};
+                    'find' : thread_find[thr],
+                	'height' : thread_height[thr]};
 		threads.push(obj);
 	});
 
-
+	// locks info
 	var rs = get_relations_at_time(env, "this/SkipList<:owns", t);
 	var locks = []
 	rs.forEach(function (r) {

@@ -202,7 +202,7 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
     }
 }
 
-pred atomUnlock(t,t': Time, thr: Thread) {
+pred atomUnlockOneNode(t,t': Time, thr: Thread) {
     let n = nextNodeToUnlock[t, thr] {
         some n implies {
             skipListNoChangeExceptRemoveLock[t,t',thr,n]
@@ -266,7 +266,7 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
             atomLockOneNode[t,t',thr]
     } else  {
         thr.op.t = AddUnlock
-        atomUnlock[t,t',thr]
+        atomUnlockOneNode[t,t',thr]
     } 
 }
 
@@ -297,26 +297,23 @@ pred doNextDelOp(t, t': Time, thrs: Thread) {
 						atomLockOneNode[t, t', thr]
 		} else {
 				thr.op.t = DelUnlock
-				atomUnlock[t, t', thr]
+				atomUnlockOneNode[t, t', thr]
 		}
 }
 
-pred isThreadFinished(t: Time, thr: Thread) {
-    no thr.op.t
-    no thr.find.t
-}
 pred allFinishes(t,t': Time) {
-//    all thr: Thread | isThreadFinished[t, thr]
     no Thread.op.t
     no Thread.find.t
     threadsNoChange[t,t']
     skipListNoChange[t,t']
 }
+
 pred trace {
-    all t: Time-last | some thr: Thread | let t' = t.next {
-        // TODO just trace some thr which are not finished.
-        (not isThreadFinished[t, thr] and (doNextAddOp[t, t', thr] or doNextDelOp[t, t', thr]))
-        or allFinishes[t,t']
+    // 866020->372100
+    all t: Time-last | some thr: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
+        allFinishes[t,t'] or
+        (thr.op.t in Add and doNextAddOp[t,t',thr]) or
+        (thr.op.t in Del and doNextDelOp[t,t',thr])
     }
 }
 
@@ -336,7 +333,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
+} for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]

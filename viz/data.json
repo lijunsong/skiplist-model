@@ -35,9 +35,9 @@
    ],
 
     "threads" : [
-        {"name": "Thread1", "op" : "AddFind", "arg" : "Value", "find": ["head0->Node1", "Head0->Node2"]},
-        {"name": "Thread2", "op" : "AddFind", "arg" : "Value", "find": ["Node3->Node4"},
-        {"name": "Thread3", "op" : "AddLock", "arg" : "Value", "find" [""]}
+        {"name": "Thread1", "op" : "AddFind", "arg" : "Value", "height": 3, "find": ["head0->Node1", "Head0->Node2"]},
+        {"name": "Thread2", "op" : "AddFind", "arg" : "Value", "height": 3, "find": ["Node3->Node4"},
+        {"name": "Thread3", "op" : "AddLock", "arg" : "Value", "height": 4, "find": [""]}
    ],
 
     "skolem" : [

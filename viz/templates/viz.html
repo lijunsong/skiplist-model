@@ -414,7 +414,7 @@ function viz(graph, time_name) {
          .text(function(d) {
                var txt = d.name;
                txt += ' op: ' + d.op;
-               txt += ' arg: ' + d.arg;
+               txt += ' arg: ' + d.arg + '[height=' + d.height + ']';
                txt += ' find: ' + d.find;
                return txt;
           });
