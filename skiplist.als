@@ -1,5 +1,6 @@
 open util/ordering[Time]
 open util/ordering[Value]
+open util/ternary
 
 sig Value{}
 sig N in Value {}
@@ -40,7 +41,7 @@ sig Thread {
 	find: Node->Int->Node->Time
 } {
   // TODO: constrain the height to the height of HeadNode
-	height >= 0 and height <= 3
+	height >= 0 and height <= max[HeadNode.succs.first.Node]
 }
 
 one sig SkipList {
@@ -330,6 +331,11 @@ pred init {
  * 2. use exactly to reduce variables and clauses whenever possible!
  * */
 // TODO: constrain the scope of Int and see if time complexity will decrease.
+pred neverIdle {
+//	all t: Time-last, thr: Thread | no thr.op.t implies some thr.op.(t.next)
+	some thr: Thread | AddFind+DelFind in thr.op.Time
+}
+
 run { 
     smallList
     some thr: Thread | thr.arg not in SkipList.nodes.first.key
@@ -339,10 +345,11 @@ run {
 } for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
 
 run {
+	neverIdle
 	emptyList[]
   init[]
 	trace[]
-} for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
+} for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
 
 pred NoDuplicates {
 	all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
@@ -352,9 +359,15 @@ pred MutualExclusion {
 	all t: Time | all n: SkipList.nodes.t | lone owns.t.n
 }
 
+pred SkipListProperty {
+	all t: Time, lv2, lv1: Int | lv1 >= 0 and lv2 >= lv1 implies lv2.(Node.succs.t) in lv1.(Node.succs.t)
+}
+
 check {init and emptyList and trace implies NoDuplicates }
 for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 check {init and emptyList and trace implies MutualExclusion }
 for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
+check {init and emptyList and trace implies SkipListProperty }
+for exactly 2 Thread, exactly 12 Time, exactly 5 Value, exactly 5 Node
