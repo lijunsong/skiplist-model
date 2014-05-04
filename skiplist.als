@@ -264,10 +264,15 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
             }
         } else 
             atomLockOneNode[t,t',thr]
-    } else  {
-        thr.op.t = AddUnlock
+    } else thr.op.t = AddUnlock implies {
+        //thr.op.t = AddUnlock
         atomUnlockOneNode[t,t',thr]
-    } 
+    } else {
+        thr.op.t' = AddFind or thr.op.t' = DelFind
+        no thr.find.t'
+        noThreadsChangeExcept[t,t',thr]
+        skipListNoChange[t,t']
+    }
 }
 
 pred doNextDelOp(t, t': Time, thr: Thread) {
@@ -294,10 +299,15 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
 						}
 				} else
 						atomLockOneNode[t, t', thr]
-		} else {
-				thr.op.t = DelUnlock
+		} else thr.op.t = DelUnlock implies {
+				
 				atomUnlockOneNode[t, t', thr]
-		}
+		} else {
+        thr.op.t' = AddFind or thr.op.t' = DelFind
+        no thr.find.t'
+        noThreadsChangeExcept[t,t',thr]
+        skipListNoChange[t,t']
+    }
 }
 
 pred allFinishes(t,t': Time) {
@@ -307,7 +317,7 @@ pred allFinishes(t,t': Time) {
     skipListNoChange[t,t']
 }
 
-pred trace {
+fact trace {
     // 866020->372100
     all t: Time-last | some thrs: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
         allFinishes[t,t'] or {
@@ -318,7 +328,7 @@ pred trace {
     }
 }
 
-pred init {
+fact init {
     /* no thread owns locks at beginning */
     no owns.first
     /* all thread should start from find */
@@ -340,34 +350,49 @@ run {
     smallList
     some thr: Thread | thr.arg not in SkipList.nodes.first.key
     some disj t1, t2: Thread | t1.arg = t2.arg 
-    init[]
-    trace[]
 } for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
 
 run {
-	neverIdle
+	//neverIdle
 	emptyList[]
-  init[]
-	trace[]
-} for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
+  some thr: Thread | thr.op.first in AddFind
+} for exactly 3 Thread, exactly 35 Time, exactly 5 Value, exactly 5 Node
 
-pred NoDuplicates {
-	all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
+pred noDuplicatesProperty {
+    all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
 }
 
-pred MutualExclusion {
-	all t: Time | all n: SkipList.nodes.t | lone owns.t.n
+pred mutualExclusionProperty {
+    all t: Time | all n: SkipList.nodes.t | lone owns.t.n
 }
+
 
 pred SkipListProperty {
 	all t: Time, lv2, lv1: Int | lv1 >= 0 and lv2 >= lv1 implies lv2.(Node.succs.t) in lv1.(Node.succs.t)
 }
 
-check {init and emptyList and trace implies NoDuplicates }
-for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+pred SkipListInOrderProperty{
+    all t: Time, r: succsAtLevel[0,t] |
+       lt[r.Node.key, (Node.r).key]
+}
 
-check {init and emptyList and trace implies MutualExclusion }
-for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+assert NoDuplicates {
+    emptyList => noDuplicatesProperty
+}
 
-check {init and emptyList and trace implies SkipListProperty }
+assert ThreadsMutualExclusive {
+    emptyList => mutualExclusionProperty
+}
+
+assert SkipListInOrder {
+    emptyList => SkipListInOrderProperty
+}
+
+check NoDuplicates for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+
+check ThreadsMutualExclusive for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+
+check { emptyList implies SkipListProperty }
 for exactly 2 Thread, exactly 12 Time, exactly 5 Value, exactly 5 Node
+
+check SkipListInOrder for exactly 3 Thread, 10 Time, exactly 5 Value, exactly 5 Node
