@@ -244,17 +244,27 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
 pred doNextDelOp(t, t': Time, thrs: Thread) {
 		all thr: thrs |
 		thr.op.t = DelFind implies {
-				thr.op.t' = DelLock
 				not isValueInList[t, thr.arg] implies
 						threadFinishesDirectly[t, t', thr]
 				else {
+						thr.op.t' = DelLock
 						skipListNoChange[t, t']
 						noThreadsChangeExcept[t, t', thr]
+						thr.find.t' = predsAndSuccs[t, thr.arg]
 				}
 		} else thr.op.t = DelLock implies {
-				areAllPredsLockedBy[t, thr] implies
-						atomDel[t, t', thr]
-				else
+				areAllPredsLockedBy[t, thr] implies {
+						predsAndSuccs[t, thr.arg] = thr.find.t implies {
+								atomDel[t, t', thr]
+								thr.op.t' = DelUnlock
+						} else {
+								thr.op.t' = DelFind
+								no thr.find.t'
+								noThreadsChangeExcept[t, t', thr]
+								let thr_owns = thr.(SkipList.owns.t) |
+										skipListNoChangeExceptRemoveLock[t, t', thr, thr_owns]
+						}
+				} else
 						atomLockOneNode[t, t', thr]
 		} else {
 				thr.op.t = DelUnlock
@@ -283,7 +293,7 @@ pred init {
     /* no thread owns locks at beginning */
     no owns.first
     /* all thread should start from find */
-    all thr: Thread | thr.op.first in AddFind + DelFind and no thr.find.first
+    all thr: Thread | thr.op.first in AddFind + DelFind and no thr.find.first and some thr.op.first
     /* customized */
     smallList
     some thr: Thread | thr.arg not in SkipList.nodes.first.key
@@ -294,7 +304,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
+} for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]
