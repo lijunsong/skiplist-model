@@ -95,10 +95,13 @@ pred threadNoChange(t,t': Time, thr: Thread) {
     thr.find.t = thr.find.t'
 }
 pred threadsNoChange(t,t': Time) {
-    all thr: Thread | threadNoChange[t,t',thr]
+    Thread.op.t = Thread.op.t'
+    Thread.find.t = Thread.find.t'
+//    all thr: Thread | threadNoChange[t,t',thr]
 }
 pred noThreadsChangeExcept(t,t': Time, thr: Thread) {
-    all thrs: Thread-thr | threadNoChange[t,t',thrs]
+//    all thrs: Thread-thr | threadNoChange[t,t',thrs]
+    (Thread-thr).op.t = (Thread-thr).op.t'
 }
 pred skipListNoChange(t, t': Time) {
     SkipList.nodes.t = SkipList.nodes.t'
@@ -277,7 +280,9 @@ pred isThreadFinished(t: Time, thr: Thread) {
     no thr.find.t
 }
 pred allFinishes(t,t': Time) {
-    all thr: Thread | isThreadFinished[t, thr]
+//    all thr: Thread | isThreadFinished[t, thr]
+    no Thread.op.t
+    no Thread.find.t
     threadsNoChange[t,t']
     skipListNoChange[t,t']
 }
@@ -304,7 +309,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
+} for exactly 2 Thread, exactly 6 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]
