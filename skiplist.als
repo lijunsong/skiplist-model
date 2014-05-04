@@ -261,7 +261,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for exactly 3 Thread, exactly 25 Time, exactly 10 Value, exactly 8 Node
+} for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
 
 
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
