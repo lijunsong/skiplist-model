@@ -71,6 +71,14 @@ fun valuePreds(x: Value, lv: Int, t: Time): seq Node {
 	{lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = max[nodesAtLevelLess[x, lv', t].key]}
 }
 
+fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
+	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
+}
+
+fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
+	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
+}
+
 pred emptyList {
 	no owns.first
 	succs.first = HeadNode->(0+1+2+3)->TailNode
@@ -95,12 +103,13 @@ pred threadNoChange(t,t': Time, thr: Thread) {
     thr.find.t = thr.find.t'
 }
 pred threadsNoChange(t,t': Time) {
+    Thread.op.t = Thread.op.t'
+    Thread.find.t = Thread.find.t'
 //    all thr: Thread | threadNoChange[t,t',thr]
-		Thread.op.t = Thread.op.t'
-		Thread.find.t = Thread.find.t'
 }
 pred noThreadsChangeExcept(t,t': Time, thr: Thread) {
-    all thrs: Thread-thr | threadNoChange[t,t',thrs]
+//    all thrs: Thread-thr | threadNoChange[t,t',thrs]
+    (Thread-thr).op.t = (Thread-thr).op.t'
 }
 pred skipListNoChange(t, t': Time) {
     SkipList.nodes.t = SkipList.nodes.t'
@@ -279,7 +288,9 @@ pred isThreadFinished(t: Time, thr: Thread) {
     no thr.find.t
 }
 pred allFinishes(t,t': Time) {
-    all thr: Thread | isThreadFinished[t, thr]
+//    all thr: Thread | isThreadFinished[t, thr]
+    no Thread.op.t
+    no Thread.find.t
     threadsNoChange[t,t']
     skipListNoChange[t,t']
 }
@@ -314,15 +325,6 @@ run {
 	trace[]
 } for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
 
-
-fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
-	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
-}
-
-fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
-	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
-}
-
 pred NoDuplicates {
 	all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
 }
@@ -336,3 +338,4 @@ for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
 
 check {init and trace implies MutualExclusion }
 for exactly 2 Thread, exactly 5 Time, exactly 10 Value, exactly 7 Node
+
