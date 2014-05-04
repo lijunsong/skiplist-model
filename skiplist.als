@@ -110,7 +110,7 @@ pred skipListNoChangeExceptRemoveLock(t,t': Time, thr: Thread, n: Node) {
 
 pred threadFinishesDirectly(t,t': Time, thr: Thread) {
     -- post
-    some thr.op.t and no thr.op.t'
+    no thr.op.t'
     no thr.find.t'
     -- frame
     noThreadsChangeExcept[t, t', thr]
@@ -196,10 +196,10 @@ fun predsAndSuccs(t: Time, x: Value): Node->Int->Node {
 pred doNextAddOp(t,t': Time, thrs: Thread) {
     all thr: thrs |
     thr.op.t = AddFind implies {
-        thr.op.t' = AddLock
         isValueInList[t, thr.arg] implies 
             threadFinishesDirectly[t, t', thr]
         else {
+            thr.op.t' = AddLock
             skipListNoChange[t,t']
             noThreadsChangeExcept[t,t',thr]
             // thr.find records the preds->succs of time t
