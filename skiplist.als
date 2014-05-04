@@ -95,7 +95,9 @@ pred threadNoChange(t,t': Time, thr: Thread) {
     thr.find.t = thr.find.t'
 }
 pred threadsNoChange(t,t': Time) {
-    all thr: Thread | threadNoChange[t,t',thr]
+//    all thr: Thread | threadNoChange[t,t',thr]
+		Thread.op.t = Thread.op.t'
+		Thread.find.t = Thread.find.t'
 }
 pred noThreadsChangeExcept(t,t': Time, thr: Thread) {
     all thrs: Thread-thr | threadNoChange[t,t',thrs]
@@ -190,8 +192,8 @@ pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
 /* given a Value, this function will return the predecessors->successors info of
  * the value x. (NOTE: x should not in the list)
  */
-fun predsAndSuccs(t: Time, x: Value): Node->Int->Node {
-    let p = valuePreds[x, 2, t] |
+fun predsAndSuccs(t: Time, thr: Thread): Node->Int->Node {
+    let p = valuePreds[thr.arg, thr.height, t] |
         let s = succsOfPreds[p, t] |
            outerJoin[p, s]
 }
@@ -214,7 +216,7 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
             skipListNoChange[t,t']
             noThreadsChangeExcept[t,t',thr]
             // thr.find records the preds->succs of time t
-            thr.find.t' = predsAndSuccs[t, thr.arg]
+            thr.find.t' = predsAndSuccs[t, thr]
         }
     } else thr.op.t = AddLock implies {
         // NOTE: thr.op.t' is not necessarily changed to Unlock
@@ -222,7 +224,7 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
         // TODO: check the thr.find instead of current one.
         areAllPredsLockedBy[t, thr] implies {
             // if all preds are locked by thr, validate the preds->succs             
-            predsAndSuccs[t, thr.arg] = thr.find.t implies {
+            predsAndSuccs[t, thr] = thr.find.t implies {
                 // preds->succs do not change, the thread is safely to add things
                 atomAdd[t, t', thr]
 								thr.op.t' = AddUnlock
@@ -250,11 +252,11 @@ pred doNextDelOp(t, t': Time, thrs: Thread) {
 						thr.op.t' = DelLock
 						skipListNoChange[t, t']
 						noThreadsChangeExcept[t, t', thr]
-						thr.find.t' = predsAndSuccs[t, thr.arg]
+						thr.find.t' = predsAndSuccs[t, thr]
 				}
 		} else thr.op.t = DelLock implies {
 				areAllPredsLockedBy[t, thr] implies {
-						predsAndSuccs[t, thr.arg] = thr.find.t implies {
+						predsAndSuccs[t, thr] = thr.find.t implies {
 								atomDel[t, t', thr]
 								thr.op.t' = DelUnlock
 						} else {
@@ -304,7 +306,7 @@ pred init {
 run { 
     init[]
     trace[]
-} for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
+} for exactly 2 Thread, exactly 6 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]
@@ -321,10 +323,16 @@ fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
 	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
 }
 
-/*
-run {
-	smallList
-	no owns
-	some disj x, y: N | addNodeWithValue[x, first, first.next] and addNodeWithValue[y, first.next, first.next.next]
-} for 8 but 2 Thread
-*/
+pred NoDuplicates {
+	all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
+}
+
+pred MutualExclusion {
+	all t: Time | all n: SkipList.nodes.t | lone owns.t.n
+}
+
+check {init and trace implies NoDuplicates }
+for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
+
+check {init and trace implies MutualExclusion }
+for exactly 2 Thread, exactly 5 Time, exactly 10 Value, exactly 7 Node
