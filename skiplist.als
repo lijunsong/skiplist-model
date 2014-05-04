@@ -233,8 +233,7 @@ fun predsAndSuccs(t: Time, thr: Thread): Node->Int->Node {
 /* TODO: (maybe assert) thr1, th2 both add value1. thr1 step to AddLock at t1, thr2 
  * step to AddLock at t2. thr1 add value1 at t3, and thr2 add value1 at t4. Now 
  * multiple value1s exist in the list! */
-pred doNextAddOp(t,t': Time, thrs: Thread) {
-  all thr: thrs |
+pred doNextAddOp(t,t': Time, thr: Thread) {
     thr.op.t = AddFind implies {
         isValueInList[t, thr.arg] implies 
             threadFinishesDirectly[t, t', thr]
@@ -270,8 +269,7 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
     } 
 }
 
-pred doNextDelOp(t, t': Time, thrs: Thread) {
-	all thr: thrs |
+pred doNextDelOp(t, t': Time, thr: Thread) {
 		thr.op.t = DelFind implies {
 				not isValueInList[t, thr.arg] implies
 						threadFinishesDirectly[t, t', thr]
@@ -310,10 +308,12 @@ pred allFinishes(t,t': Time) {
 
 pred trace {
     // 866020->372100
-    all t: Time-last | some thr: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
-        allFinishes[t,t'] or
-        (thr.op.t in Add and doNextAddOp[t,t',thr]) or
-        (thr.op.t in Del and doNextDelOp[t,t',thr])
+    all t: Time-last | some thrs: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
+        allFinishes[t,t'] or {
+           all thr: thrs | // writing in this way can significantly reduce variables.
+              (thr.op.t in Add and doNextAddOp[t,t',thr]) or
+              (thr.op.t in Del and doNextDelOp[t,t',thr])
+        }
     }
 }
 
@@ -321,25 +321,28 @@ pred init {
     /* no thread owns locks at beginning */
     no owns.first
     /* all thread should start from find */
-    all thr: Thread | thr.op.first in AddFind + DelFind and no thr.find.first and some thr.op.first
-    /* customized */
-    smallList
-    some thr: Thread | thr.arg not in SkipList.nodes.first.key
-    some disj t1, t2: Thread | t1.arg = t2.arg
+    no Thread.find.first
+    all thr: Thread | thr.op.first = AddFind or thr.op.first = DelFind
 }
 
-/* IMPORTANT: make sure the scopes for Value,Node,Thread are matched! */
-// TODO: constrain the Int and see if time complexity will decrease.
+/* IMPORTANT: 
+ * 1. make sure the scopes for Value,Node,Thread are matched! 
+ * 2. use exactly to reduce variables and clauses whenever possible!
+ * */
+// TODO: constrain the scope of Int and see if time complexity will decrease.
 run { 
+    smallList
+    some thr: Thread | thr.arg not in SkipList.nodes.first.key
+    some disj t1, t2: Thread | t1.arg = t2.arg 
     init[]
     trace[]
 } for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]
-  all thr: Thread | thr.op.first in AddFind + DelFind
+  init[]
 	trace[]
-} for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
+} for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
 
 pred NoDuplicates {
 	all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
@@ -349,9 +352,9 @@ pred MutualExclusion {
 	all t: Time | all n: SkipList.nodes.t | lone owns.t.n
 }
 
-check {init and trace implies NoDuplicates }
-for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
+check {init and emptyList and trace implies NoDuplicates }
+for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
-check {init and trace implies MutualExclusion }
-for exactly 2 Thread, exactly 5 Time, exactly 10 Value, exactly 7 Node
+check {init and emptyList and trace implies MutualExclusion }
+for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
