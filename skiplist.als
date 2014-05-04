@@ -10,10 +10,7 @@ sig Time {}
 sig Node {
 	succs: (seq Node) -> Time,
 	key: Value,
-//	height: Int
-} /*{
-	height >= 0 and height <= 3
-}*/
+}
 
 one sig HeadNode extends Node {} {
 	key = first
@@ -31,10 +28,18 @@ one sig AddFind extends Add {}
 one sig AddLock extends Add {}
 one sig AddUnlock extends Add {}
 
+abstract sig Del extends Operation {}
+one sig DelFind extends Del {}
+one sig DelLock extends Del {}
+one sig DelUnlock extends Del {}
+
 sig Thread {
-    op: Operation lone ->Time,
-    arg: N
-} 
+	op: Operation lone ->Time,
+	arg: N,
+	height: Int
+} {
+	height >= 0 and height <= 3
+}
 
 one sig SkipList {
 	nodes: set Node->Time,
@@ -63,6 +68,11 @@ fun nodesAtLevelLess(x: Value, lv: Int, t: Time): set Node {
 
 fun valuePreds(x: Value, lv: Int, t: Time): seq Node {
 	{lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = max[nodesAtLevelLess[x, lv', t].key]}
+}
+
+pred emptyList {
+	no owns.first
+	succs.first = HeadNode->(0+1+2+3)->TailNode
 }
 
 pred smallList {
@@ -120,15 +130,15 @@ pred isValueInList(t: Time, x: Value) {
 }
 
 pred areAllPredsLockedBy(t: Time, thr: Thread) {
-    let nodes = valuePreds[thr.arg, 2, t] {
+    let nodes = valuePreds[thr.arg, thr.height, t] {
         Int.nodes = thr.(SkipList.owns.t)
     }
 }
 
-pred atomAddAndUnlock(t,t': Time, thr: Thread) {
+pred atomAdd(t,t': Time, thr: Thread) {
 	some n: Node - SkipList.nodes.t {
 		n.key = thr.arg
-		let xPreds = valuePreds[thr.arg, 2, t] {
+		let xPreds = valuePreds[thr.arg, thr.height, t] {
 			//(~xPreds)->n->t' in succs // Link predecessors
 			let xSuccs = succsOfPreds[xPreds, t] {
 			//	n->xSuccs->t' in succs // Link successors
@@ -137,9 +147,12 @@ pred atomAddAndUnlock(t,t': Time, thr: Thread) {
 			}
 		}
 	}
-  thr.op.t = AddLock and thr.op.t' = AddUnlock
   noThreadsChangeExcept[t,t',thr]
   SkipList.owns.t = SkipList.owns.t'
+}
+
+pred atomDel(t, t': Time, thr: Thread) {
+	atomAdd[t', t, thr]
 }
 
 /* this function returns one predecessor node that is not locked by thread thr.
@@ -148,7 +161,7 @@ pred atomAddAndUnlock(t,t': Time, thr: Thread) {
  * Finally return the node mapped by minimum int.
  */
 fun nextNodeToLock(t: Time, thr: Thread) : Node {
-    let allPredsNode = valuePreds[thr.arg, 2, t] |
+    let allPredsNode = valuePreds[thr.arg, thr.height, t] |
         let nextUnlockedNodeSeq = allPredsNode - allPredsNode:>SkipList.owns.t[thr] {
             let num = min[nextUnlockedNodeSeq.Node] {
                 num.nextUnlockedNodeSeq
@@ -168,7 +181,7 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
 
 pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
     all n: thr.(SkipList.owns.t) | skipListNoChangeExceptRemoveLock[t,t',thr, n]
-    thr.op.t = AddUnlock and no thr.op.t'
+    no thr.op.t'
     noThreadsChangeExcept[t,t',thr]
 }
 
@@ -194,14 +207,37 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
     } else thr.op.t = AddLock implies {
         // NOTE: thr.op.t' is not necessarily changed to Unlock
         // thr.op.'t should be changed to addUnlock in this case
-        areAllPredsLockedBy[t, thr] implies
-            atomAddAndUnlock[t, t', thr]
+        areAllPredsLockedBy[t, thr] implies {
+            atomAdd[t, t', thr]
+						thr.op.t' = AddUnlock
+				}
         else 
             atomLockOneNode[t,t',thr]
     } else  {
         thr.op.t = AddUnlock
         atomUnlockAndFinish[t,t',thr]
     } 
+}
+
+pred doNextDelOp(t, t': Time, thrs: Thread) {
+		all thr: thrs |
+		thr.op.t = DelFind implies {
+				thr.op.t' = DelLock
+				not isValueInList[t, thr.arg] implies
+						threadFinishesDirectly[t, t', thr]
+				else {
+						skipListNoChange[t, t']
+						noThreadsChangeExcept[t, t', thr]
+				}
+		} else thr.op.t = DelLock implies {
+				areAllPredsLockedBy[t, thr] implies
+						atomDel[t, t', thr]
+				else
+						atomLockOneNode[t, t', thr]
+		} else {
+				thr.op.t = DelUnlock
+				atomUnlockAndFinish[t, t', thr]
+		}
 }
 
 pred isThreadFinished(t: Time, thr: Thread) {
@@ -215,7 +251,7 @@ pred allFinishes(t,t': Time) {
 pred trace {
     all t: Time-last | some thr: Thread | let t' = t.next {
         // TODO just trace some thr which are not finished.
-        (not isThreadFinished[t, thr] and doNextAddOp[t, t', thr])
+        (not isThreadFinished[t, thr] and (doNextAddOp[t, t', thr] or doNextDelOp[t, t', thr]))
         or allFinishes[t,t']
     }
 }
@@ -224,7 +260,7 @@ pred init {
     /* no thread owns locks at beginning */
     no owns.first
     /* all thread should start from find */
-    all thr: Thread | thr.op.first = AddFind
+    all thr: Thread | thr.op.first in AddFind + DelFind
     /* customized */
     smallList
     some thr: Thread | thr.arg not in SkipList.nodes.first.key   
@@ -234,6 +270,12 @@ pred init {
 run { 
     init[]
     trace[]
+} for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
+
+run {
+	emptyList[]
+  all thr: Thread | thr.op.first in AddFind + DelFind
+	trace[]
 } for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
 
 
