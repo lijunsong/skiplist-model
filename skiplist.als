@@ -104,13 +104,13 @@ pred threadNoChange(t,t': Time, thr: Thread) {
     thr.find.t = thr.find.t'
 }
 pred threadsNoChange(t,t': Time) {
-    Thread.op.t = Thread.op.t'
-    Thread.find.t = Thread.find.t'
-//    all thr: Thread | threadNoChange[t,t',thr]
+//    Thread.op.t = Thread.op.t'
+//    Thread.find.t = Thread.find.t'
+    all thr: Thread | threadNoChange[t,t',thr]
 }
 pred noThreadsChangeExcept(t,t': Time, thr: Thread) {
-//    all thrs: Thread-thr | threadNoChange[t,t',thrs]
-    (Thread-thr).op.t = (Thread-thr).op.t'
+    all thrs: Thread-thr | threadNoChange[t,t',thrs]
+//    (Thread-thr).op.t = (Thread-thr).op.t'
 }
 pred skipListNoChange(t, t': Time) {
     SkipList.nodes.t = SkipList.nodes.t'
