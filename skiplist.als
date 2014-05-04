@@ -39,6 +39,7 @@ sig Thread {
 	height: Int,
 	find: Node->Int->Node->Time
 } {
+  // TODO: constrain the height to the height of HeadNode
 	height >= 0 and height <= 3
 }
 
@@ -173,12 +174,22 @@ pred atomDel(t, t': Time, thr: Thread) {
  * Finally return the node mapped by minimum int.
  */
 fun nextNodeToLock(t: Time, thr: Thread) : Node {
-    let allPredsNode = ~(thr.find.t.Node) |
+    let allPredsNode = ~(thr.find.t.Node) { // type: Int->Node
         let nextUnlockedNodeSeq = allPredsNode - allPredsNode:>SkipList.owns.t[thr] {
             let num = min[nextUnlockedNodeSeq.Node] {
                 num.nextUnlockedNodeSeq
             }
         }
+    }
+}
+fun nextNodeToUnlock(t: Time, thr: Thread) : Node {
+    let allPredsNode = ~(thr.find.t.Node) { // type: Int->Node
+        let nextLockedNodeSeq = allPredsNode :> SkipList.owns.t[thr] {
+            let num = max[nextLockedNodeSeq.Node] {
+                num.nextLockedNodeSeq
+            }
+        }
+    }
 }
 
 pred atomLockOneNode(t,t': Time, thr: Thread) {
@@ -191,11 +202,17 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
     }
 }
 
-pred atomUnlockAndFinish(t,t': Time, thr: Thread) {
-    all n: thr.(SkipList.owns.t) | skipListNoChangeExceptRemoveLock[t,t',thr, n]
-		no thr.op.t'
-    no thr.find.t'
-    noThreadsChangeExcept[t,t',thr]
+pred atomUnlock(t,t': Time, thr: Thread) {
+    let n = nextNodeToUnlock[t, thr] {
+        some n implies {
+            skipListNoChangeExceptRemoveLock[t,t',thr,n]
+            threadsNoChange[t,t']
+        } else {
+            no thr.op.t'
+            no thr.find.t'
+            noThreadsChangeExcept[t,t',thr]
+        }
+    }
 }
 
 /* given a Value, this function will return the predecessors->successors info of
@@ -216,7 +233,7 @@ fun predsAndSuccs(t: Time, thr: Thread): Node->Int->Node {
  * step to AddLock at t2. thr1 add value1 at t3, and thr2 add value1 at t4. Now 
  * multiple value1s exist in the list! */
 pred doNextAddOp(t,t': Time, thrs: Thread) {
-    all thr: thrs |
+  all thr: thrs |
     thr.op.t = AddFind implies {
         isValueInList[t, thr.arg] implies 
             threadFinishesDirectly[t, t', thr]
@@ -248,12 +265,12 @@ pred doNextAddOp(t,t': Time, thrs: Thread) {
             atomLockOneNode[t,t',thr]
     } else  {
         thr.op.t = AddUnlock
-        atomUnlockAndFinish[t,t',thr]
+        atomUnlock[t,t',thr]
     } 
 }
 
 pred doNextDelOp(t, t': Time, thrs: Thread) {
-		all thr: thrs |
+	all thr: thrs |
 		thr.op.t = DelFind implies {
 				not isValueInList[t, thr.arg] implies
 						threadFinishesDirectly[t, t', thr]
@@ -279,7 +296,7 @@ pred doNextDelOp(t, t': Time, thrs: Thread) {
 						atomLockOneNode[t, t', thr]
 		} else {
 				thr.op.t = DelUnlock
-				atomUnlockAndFinish[t, t', thr]
+				atomUnlock[t, t', thr]
 		}
 }
 
@@ -314,10 +331,11 @@ pred init {
 }
 
 /* IMPORTANT: make sure the scopes for Value,Node,Thread are matched! */
+// TODO: constrain the Int and see if time complexity will decrease.
 run { 
     init[]
     trace[]
-} for exactly 2 Thread, exactly 6 Time, exactly 10 Value, exactly 7 Node
+} for exactly 2 Thread, exactly 10 Time, exactly 10 Value, exactly 7 Node
 
 run {
 	emptyList[]
