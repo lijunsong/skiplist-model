@@ -71,6 +71,14 @@ fun valuePreds(x: Value, lv: Int, t: Time): seq Node {
 	{lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = max[nodesAtLevelLess[x, lv', t].key]}
 }
 
+fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
+	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
+}
+
+fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
+	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
+}
+
 pred emptyList {
 	no owns.first
 	succs.first = HeadNode->(0+1+2+3)->TailNode
@@ -316,20 +324,3 @@ run {
   all thr: Thread | thr.op.first in AddFind + DelFind
 	trace[]
 } for exactly 3 Thread, exactly 15 Time, exactly 10 Value, exactly 8 Node
-
-
-fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
-	{lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
-}
-
-fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
-	{l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
-}
-
-/*
-run {
-	smallList
-	no owns
-	some disj x, y: N | addNodeWithValue[x, first, first.next] and addNodeWithValue[y, first.next, first.next.next]
-} for 8 but 2 Thread
-*/
