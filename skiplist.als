@@ -211,6 +211,7 @@ pred atomUnlock(t,t': Time, thr: Thread) {
             no thr.op.t'
             no thr.find.t'
             noThreadsChangeExcept[t,t',thr]
+            skipListNoChange[t,t']
         }
     }
 }
