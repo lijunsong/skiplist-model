@@ -18,10 +18,11 @@ function parse_line(line) {
 	if (line.indexOf("skolem") != -1) {
 		line = line.replace('skolem ', '');
 	}
+    line = line.trim();
 
 	var c = line.split('=');
 	var id = c[0].trim();
-	var values = c[1].trim().replace(/{|}| /g, "").split(",");
+	var values = c[1].trim().replace(/{|}|\ /g, "").split(",");
 	return {"id": id, "value": values};
 
 }
@@ -143,10 +144,12 @@ function build_nodes_links_groups(env, t) {
 	// build the threads info. filter out floating threads
 	var ops = get_relations_at_time(env, "this/Thread<:op", t);
 	var args = get_relations_at_time(env, "this/Thread<:arg", t);
-	var thread_list = env["this/Thread"]
+	var thread_list = env["this/Thread"];
+    var finds = get_relations_at_time(env, "this/Thread<:find", t);
 
 	var thread_ops = {};
 	var thread_args = {};
+    var thread_find = {};
 	var threads = [];
 	args.forEach(function(arg) {
 		if (arg == "")
@@ -160,10 +163,22 @@ function build_nodes_links_groups(env, t) {
 		var lst = op.split("->");
 		thread_ops[lst[0]] = lst[1].match(/(.*)\$\d+$/)[1];
 	});
+    finds.forEach(function(f) {
+        if (f == "")
+            return;
+        var lst = f.split("->");
+        var origin = [];
+        if (thread_find[lst[0]] != null)
+            origin = thread_find[lst[0]];
+        origin.push(f.replace(lst[0]+'->', ''));
+        thread_find[lst[0]] = origin;
+    });
+    
 	thread_list.forEach(function(thr) {
 		var obj = { 'name' : thr,
 					'op' : thread_ops[thr],
-				    'arg' : thread_args[thr]}
+				    'arg' : thread_args[thr],
+                    'find' : thread_find[thr]};
 		threads.push(obj);
 	});
 
