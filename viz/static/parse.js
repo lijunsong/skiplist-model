@@ -170,7 +170,7 @@ function build_nodes_links_groups(env, t) {
         var origin = [];
         if (thread_find[lst[0]] != null)
             origin = thread_find[lst[0]];
-        origin.push(lst[1]+'->'+lst[2]);
+        origin.push(f.replace(lst[0]+'->', ''));
         thread_find[lst[0]] = origin;
     });
     
