@@ -17,7 +17,7 @@ one sig HeadNode extends Node {} {
     key = first
 }
 one sig TailNode extends Node {} {
-    no succs
+    --no succs
     key = last
 }
 
@@ -27,10 +27,10 @@ one sig SkipList {
 } {
     all t: Time | HeadNode in nodes.t
     all t: Time | TailNode in nodes.t
-    // Nodes that aren't in the list are NOT in the list
+    -- make constraint on the floating nodes. Make it pointing to nothing
     all t: Time, n: Node - nodes.t | no n.succs.t and no succs.t.n
-    all t: Time, notTail: nodes.t-TailNode, notHead: nodes.t-HeadNode
-         | some notTail.succs.t and some succs.t.notHead
+    --all t: Time, notTail: nodes.t-TailNode, notHead: nodes.t-HeadNode
+    --     | some notTail.succs.t and some succs.t.notHead
 }
 
 
@@ -57,6 +57,7 @@ sig Thread {
 }
 
 /* ========== Functions ========== */
+-- return node->node at level lv
 fun succsAtLevel(lv: Int, t: Time): set Node->Node {
     {x: Node, y: Node | x->lv->y->t in succs}
 }
@@ -64,15 +65,15 @@ fun succsAtLevel(lv: Int, t: Time): set Node->Node {
 fun nodesAtLevelLess(x: Value, lv: Int, t: Time): set Node {
     {n: SkipList.nodes.t | n in HeadNode.*(succsAtLevel[lv, t]) and n.key in prevs[x]}
 }
-
+-- given a value, return the values' predecessors at each level.
 fun valuePreds(x: Value, lv: Int, t: Time): seq Node {
     {lv': Int, n: SkipList.nodes.t | lv' <= lv and lv' >= 0 and n.key = max[nodesAtLevelLess[x, lv', t].key]}
 }
-
+-- given a node's levels, return the successors at each level
 fun succsOfPreds(predNodes: seq Node, t: Time): set Int -> Node {
     {lv: predNodes.Node, n: Node | (lv.predNodes)->lv->n in succs.t} 
 }
-
+-- given predecessors and successors, return links of the two, including the level numbers.
 fun outerJoin(left, right: seq Node): set Node -> Int -> Node {
     {l: Node, lv: Int, r: Node | lv->l in left and lv->r in right}
 }
@@ -146,6 +147,13 @@ pred threadFinishesDirectly(t,t': Time, thr: Thread) {
     skipListNoChange[t, t']
 }
 
+pred allFinish(t,t': Time) {
+    no Thread.op.t
+    no Thread.find.t
+    threadsNoChange[t,t']
+    skipListNoChange[t,t']
+}
+
 /* ========== Predicates: Atomic Operation ========== */
 pred isValueInList(t: Time, x: Value) {
     let nodes = SkipList.nodes.t {
@@ -188,20 +196,6 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
     }
 }
 
-pred atomUnlockOneNodeThenFinish(t,t': Time, thr: Thread) {
-    let n = nextNodeToUnlock[t, thr] {
-        some n implies {
-            skipListNoChangeExceptRemoveLock[t,t',thr,n]
-            threadsNoChange[t,t']
-        } else {
-            no thr.op.t'
-            no thr.find.t'
-            noThreadsChangeExcept[t,t',thr]
-            skipListNoChange[t,t']
-        }
-    }
-}
-
 pred atomUnlockOneNode(t,t': Time, thr: Thread) {
     let n = nextNodeToUnlock[t, thr] {
         some n 
@@ -210,6 +204,12 @@ pred atomUnlockOneNode(t,t': Time, thr: Thread) {
     }
 }
 
+/* doNextAddOp and doNextDelOp is symmetric.(because we model the link and unlink
+ * as atomic operation.)
+ *
+ * Based on thread's current operation, the predicate will make constraints on 
+ * SkipList and Threads, to produce next state.
+ */
 pred doNextAddOp(t,t': Time, thr: Thread) {
     thr.op.t = AddFind implies {
         isValueInList[t, thr.arg] implies 
@@ -222,12 +222,13 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
         }
     } else thr.op.t = AddLock implies {
         areAllPredsLockedBy[t, thr] implies {
-            // if all preds are locked by thr, validate the preds->succs             
+            // if all preds are locked by thr, validate the preds->succs
             predsAndSuccs[t, thr] = thr.find.t implies {
                 // preds->succs do not change, the thread is safely to add things
                 atomAdd[t, t', thr]
                 thr.op.t' = AddUnlock
             } else {
+                // preds->succs changed! the thread will not do atomAdd. Restart instead.
                 thr.op.t' = AddRestart
                 thr.find.t' = thr.find.t
                 noThreadsChangeExcept[t,t',thr]
@@ -241,7 +242,7 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
         else 
             threadFinishesDirectly[t,t',thr]
     } else {
-        // restart
+        // restart and unlock
         thr.op.t = AddRestart
         some thr.(SkipList.owns.t) implies
             atomUnlockOneNode[t,t',thr]
@@ -298,14 +299,6 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
     }
 }
 
-pred allFinishes(t,t': Time) {
-    no Thread.op.t
-    no Thread.find.t
-    threadsNoChange[t,t']
-    skipListNoChange[t,t']
-}
-
-
 pred emptyList {
     no owns.first
     succs.first = HeadNode->(0+1+2+3)->TailNode
@@ -326,7 +319,7 @@ pred exampleList {
 /* ========== fact ========== */
 fact trace {
     all t: Time-last | some thrs: Thread | let t' = t.next {
-        allFinishes[t,t'] or {
+        allFinish[t,t'] or {
            all thr: thrs | // writing in this way can significantly reduce variables.
               (thr.op.t in Add and doNextAddOp[t,t',thr]) or
               (thr.op.t in Del and doNextDelOp[t,t',thr])
@@ -454,7 +447,7 @@ assert SkipListAcyclic {
  * 2. use 'exactly' to reduce variables and clauses whenever possible!
  * */
 /* the two run commands will produce instances where threads race and conflict with each other */
-run threadsRace for exactly 2 Thread, exactly 15 Time, exactly 6 Value, exactly 6 Node
+run threadsRace for exactly 2 Thread, exactly 15 Time, exactly 8 Value, exactly 8 Node
 
 run threadsRace2 for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactly 7 Node
 
@@ -472,7 +465,7 @@ check NoDuplicates for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exact
 
 check ThreadsMutualExclusive for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
-check SkipListP for exactly 3 Thread, exactly 5 Time, exactly 8 Value, exactly 8 Node
+check SkipListP for exactly 3 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
 check SkipListInOrder for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
