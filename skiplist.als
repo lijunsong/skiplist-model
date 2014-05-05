@@ -219,6 +219,14 @@ pred atomUnlockOneNodeThenFinish(t,t': Time, thr: Thread) {
     }
 }
 
+pred atomUnlockOneNode(t,t': Time, thr: Thread) {
+    let n = nextNodeToUnlock[t, thr] {
+        some n 
+        skipListNoChangeExceptRemoveLock[t,t',thr,n]
+        threadsNoChange[t,t']
+    }
+}
+
 /* given a Value, this function will return the predecessors->successors info of
  * the value x. (NOTE: x should not in the list)
  */
@@ -244,13 +252,9 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
             thr.op.t' = AddLock
             skipListNoChange[t,t']
             noThreadsChangeExcept[t,t',thr]
-            // thr.find records the preds->succs of time t
             thr.find.t' = predsAndSuccs[t, thr]
         }
     } else thr.op.t = AddLock implies {
-        // NOTE: thr.op.t' is not necessarily changed to Unlock
-        // thr.op.'t should be changed to addUnlock in this case
-        // TODO: check the thr.find instead of current one.
         areAllPredsLockedBy[t, thr] implies {
             // if all preds are locked by thr, validate the preds->succs             
             predsAndSuccs[t, thr] = thr.find.t implies {
@@ -266,16 +270,17 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
         } else 
             atomLockOneNode[t,t',thr]
     } else thr.op.t = AddUnlock implies {
-        atomUnlockOneNodeThenFinish[t,t',thr]
+        some thr.(SkipList.owns.t) implies 
+            atomUnlockOneNode[t,t',thr] 
+        else 
+            threadFinishesDirectly[t,t',thr]
     } else {
         // restart
         thr.op.t = AddRestart
-        some thr.(SkipList.owns.t) implies {
-            let n = nextNodeToUnlock[t, thr] {
-               skipListNoChangeExceptRemoveLock[t,t',thr,n]
-               threadsNoChange[t,t']
-            }
-        } else {
+        some thr.(SkipList.owns.t) implies
+            atomUnlockOneNode[t,t',thr]
+        else {
+            // no nodes can be unlocked
             thr.op.t' = AddFind
             no thr.find.t'
             noThreadsChangeExcept[t,t',thr]
@@ -308,16 +313,17 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
 				} else
 						atomLockOneNode[t, t', thr]
 		} else thr.op.t = DelUnlock implies {
-				atomUnlockOneNodeThenFinish[t, t', thr]
+        some thr.(SkipList.owns.t) implies 
+            atomUnlockOneNode[t,t',thr] 
+        else 
+            threadFinishesDirectly[t,t',thr]
 		} else {
         // restart
         thr.op.t = DelRestart
-        some thr.(SkipList.owns.t) implies {
-            let n = nextNodeToUnlock[t, thr] {
-               skipListNoChangeExceptRemoveLock[t,t',thr,n]
-               threadsNoChange[t,t']
-            }
-        } else {
+        some thr.(SkipList.owns.t) implies
+            atomUnlockOneNode[t,t',thr]
+        else {
+            // no nodes can be unlocked
             thr.op.t' = DelFind
             no thr.find.t'
             noThreadsChangeExcept[t,t',thr]
@@ -333,7 +339,7 @@ pred allFinishes(t,t': Time) {
     skipListNoChange[t,t']
 }
 
-fact trace {
+pred trace {
     // 866020->372100
     all t: Time-last | some thrs: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
         allFinishes[t,t'] or {
@@ -395,6 +401,35 @@ pred SkipListInOrderProperty{
 }
 
 // TODO: what will happen if a thread is trying to delete a locked node?
+// one thread cannot unlock other threads' lock
+pred CanUnlockOtherThreadsLock {
+    some t: Time | some disj thrToUnlock, thrHoldingLock : Thread {
+        let ns = nextNodeToUnlock[t,thrToUnlock] {
+            thrToUnlock.op.t = AddUnlock
+            thrHoldingLock.op.t = AddLock
+            // thrHoldingLock holds the lock of the predecessors in its 'find' field
+            ns in (thrHoldingLock.find.t).Node.Int
+        }    
+    }
+}
+assert ShouldNotUnlockOthersLock {
+    emptyList => not CanUnlockOtherThreadsLock
+}
+// we need two types of assertion: one on the skiplist property; another is on our model.
+// restart state has cleaned everything.
+pred restartButNotClean {
+    some t: Time | some thr: Thread {
+        thr.op.t = AddFind or thr.op.t = DelFind
+        some thr.find.t or some SkipList.owns.t[thr]
+    }
+}
+
+assert restartWithCleanState {
+    emptyList => not restartButNotClean
+}
+
+check restartWithCleanState
+for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 assert NoDuplicates {
     emptyList => noDuplicatesProperty
