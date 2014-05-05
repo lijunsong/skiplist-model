@@ -53,7 +53,7 @@ one sig SkipList {
 } {
 	all t: Time | HeadNode in nodes.t
 	all t: Time | TailNode in nodes.t
-	// Nodes that aren't in the list are NOT in the list: TODO: bug nodes include nodes not in list
+	// Nodes that aren't in the list are NOT in the list
 	all t: Time, n: Node - nodes.t | no n.succs.t and no succs.t.n
   all t: Time, notTail: nodes.t-TailNode, notHead: nodes.t-HeadNode
        | some notTail.succs.t and some succs.t.notHead
@@ -339,9 +339,8 @@ pred allFinishes(t,t': Time) {
     skipListNoChange[t,t']
 }
 
-pred trace {
-    // 866020->372100
-    all t: Time-last | some thrs: Thread | let t' = t.next { // TODO: diff to say one thr: Thread
+fact trace {
+    all t: Time-last | some thrs: Thread | let t' = t.next {
         allFinishes[t,t'] or {
            all thr: thrs | // writing in this way can significantly reduce variables.
               (thr.op.t in Add and doNextAddOp[t,t',thr]) or
@@ -418,18 +417,23 @@ pred SomeDeletionOfLockedNodes {
 // TODO: what will happen if a thread is trying to delete a locked node?
 // one thread cannot unlock other threads' lock
 pred CanUnlockOtherThreadsLock {
-    some t: Time | some disj thrToUnlock, thrHoldingLock : Thread {
+    some t: Time | some thrToUnlock: Thread {
         let ns = nextNodeToUnlock[t,thrToUnlock] {
-            thrToUnlock.op.t = AddUnlock
-            thrHoldingLock.op.t = AddLock
-            // thrHoldingLock holds the lock of the predecessors in its 'find' field
-            ns in (thrHoldingLock.find.t).Node.Int
+            some ns
+            SkipList.owns.t.ns != thrToUnlock
         }    
     }
 }
+
 assert ShouldNotUnlockOthersLock {
     emptyList => not CanUnlockOtherThreadsLock
 }
+
+
+check ShouldNotUnlockOthersLock
+for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
+
+
 // we need two types of assertion: one on the skiplist property; another is on our model.
 // restart state has cleaned everything.
 pred restartButNotClean {
