@@ -431,7 +431,7 @@ assert ShouldNotUnlockOthersLock {
 
 
 check ShouldNotUnlockOthersLock
-for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
+for exactly 2 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
 
 
 // we need two types of assertion: one on the skiplist property; another is on our model.
@@ -448,7 +448,7 @@ assert restartWithCleanState {
 }
 
 check restartWithCleanState
-for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 run {smallList and SomeDeletionOfLockedNodes }
 for exactly 2 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
@@ -480,6 +480,6 @@ check ThreadsMutualExclusive for exactly 2 Thread, exactly 10 Time, exactly 5 Va
 
 check SkipListP for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
-check SkipListInOrder for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check SkipListInOrder for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 check Acyclic for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
