@@ -221,21 +221,21 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
             thr.find.t' = predsAndSuccs[t, thr]
         }
     } else thr.op.t = AddLock implies {
-        areAllPredsLockedBy[t, thr] implies {
             // if all preds are locked by thr, validate the preds->succs
-            predsAndSuccs[t, thr] = thr.find.t implies {
+        predsAndSuccs[t, thr] = thr.find.t implies {
+            areAllPredsLockedBy[t, thr] implies {
                 // preds->succs do not change, the thread is safely to add things
                 atomAdd[t, t', thr]
                 thr.op.t' = AddUnlock
-            } else {
-                // preds->succs changed! the thread will not do atomAdd. Restart instead.
-                thr.op.t' = AddRestart
-                thr.find.t' = thr.find.t
-                noThreadsChangeExcept[t,t',thr]
-                skipListNoChange[t,t']
-            }
-        } else 
-            atomLockOneNode[t,t',thr]
+            }else 
+                atomLockOneNode[t,t',thr]
+        } else {
+            // preds->succs changed! the thread will not do atomAdd. Restart instead.
+            thr.op.t' = AddRestart
+            thr.find.t' = thr.find.t
+            noThreadsChangeExcept[t,t',thr]
+            skipListNoChange[t,t']
+        }
     } else thr.op.t = AddUnlock implies {
         some thr.(SkipList.owns.t) implies 
             atomUnlockOneNode[t,t',thr] 
@@ -267,20 +267,20 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
             thr.find.t' = predsAndSuccs[t, thr]
         }
     } else thr.op.t = DelLock implies {
-        areAllPredsLockedBy[t, thr] implies {
-            predsAndSuccs[t, thr] = thr.find.t and 
-            thr.arg not in (Thread-thr).(SkipList.owns.t).key implies {
+        predsAndSuccs[t, thr] = thr.find.t implies {
+            areAllPredsLockedBy[t, thr] implies {
+                thr.arg not in (Thread-thr).(SkipList.owns.t).key
                 // find does not change and the node is not locked by other threads.
                 atomDel[t, t', thr]
-                thr.op.t' = DelUnlock
-            } else {
-                thr.op.t' = DelRestart
-                thr.find.t' = thr.find.t // keep the find info for unlocking
-                noThreadsChangeExcept[t,t',thr]
-                skipListNoChange[t,t']
-            }
-        } else
-            atomLockOneNode[t, t', thr]
+                thr.op.t' = DelUnlock   
+            } else
+                atomLockOneNode[t, t', thr]
+        } else {
+            thr.op.t' = DelRestart
+            thr.find.t' = thr.find.t // keep the find info for unlocking
+            noThreadsChangeExcept[t,t',thr]
+            skipListNoChange[t,t']
+        }
     } else thr.op.t = DelUnlock implies {
         some thr.(SkipList.owns.t) implies 
             atomUnlockOneNode[t,t',thr] 
@@ -320,9 +320,9 @@ pred exampleList {
 
 /* ========== fact ========== */
 fact trace {
-    all t: Time-last | some thrs: Thread | let t' = t.next {
+    all t: Time-last | some thr: Thread | let t' = t.next {
         allFinish[t,t'] or {
-           all thr: thrs | // writing in this way can significantly reduce variables.
+           //all thr: thrs | // writing in this way can significantly reduce variables.
               (thr.op.t in Add and doNextAddOp[t,t',thr]) or
               (thr.op.t in Del and doNextDelOp[t,t',thr])
         }
@@ -419,6 +419,13 @@ pred uncleanRestart {
     }
 }
 
+// a deleted node should be locked again
+pred acquireDeletedNodeLock {
+    some n: Node | some t: Time |
+        n in Thread.(SkipList.owns.t) and 
+        n not in SkipList.nodes.t
+}
+
 // A thread should not unlock a node locked by another thread
 assert NoUnlockingOthersLock {
     emptyList => not unlockOtherThreadsLock
@@ -459,6 +466,10 @@ assert SkipListAcyclic {
     emptyList => skipListAcyclic
 }
 
+assert NoAcquireDeletedNodeLock {
+    exampleList => not acquireDeletedNodeLock
+}
+
 /* IMPORTANT: 
  * 1. make sure the scopes for Value,Node,Thread are matched! 
  * 2. use 'exactly' to reduce variables and clauses whenever possible!
@@ -470,13 +481,14 @@ run threadsRace2 for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactl
 
 /* Model's internal property */
 -- restart states should clean everything, including SkipList.own and thread.find
-// 
 check CleanRestart for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
 
 --this one takes 500s
 check NoUnlockingOthersLock for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
 
 check NoDeleteLockedNode for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
+
+check NoAcquireDeletedNodeLock for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 /* skipList property */
 check NoDuplicates for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
