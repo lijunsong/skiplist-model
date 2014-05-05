@@ -25,11 +25,13 @@ one sig TailNode extends Node {} {
 
 abstract sig Operation {}
 abstract sig Add extends Operation {}
+one sig AddRestart extends Add {}
 one sig AddFind extends Add {}
 one sig AddLock extends Add {}
 one sig AddUnlock extends Add {}
 
 abstract sig Del extends Operation {}
+one sig DelRestart extends Del {}
 one sig DelFind extends Del {}
 one sig DelLock extends Del {}
 one sig DelUnlock extends Del {}
@@ -203,7 +205,7 @@ pred atomLockOneNode(t,t': Time, thr: Thread) {
     }
 }
 
-pred atomUnlockOneNode(t,t': Time, thr: Thread) {
+pred atomUnlockOneNodeThenFinish(t,t': Time, thr: Thread) {
     let n = nextNodeToUnlock[t, thr] {
         some n implies {
             skipListNoChangeExceptRemoveLock[t,t',thr,n]
@@ -256,22 +258,29 @@ pred doNextAddOp(t,t': Time, thr: Thread) {
                 atomAdd[t, t', thr]
 								thr.op.t' = AddUnlock
             } else {
-                thr.op.t' = AddFind
-                no thr.find.t'
+                thr.op.t' = AddRestart
+                thr.find.t' = thr.find.t
                 noThreadsChangeExcept[t,t',thr]
-                let thr_owns = thr.(SkipList.owns.t) |
-                    skipListNoChangeExceptRemoveLock[t,t',thr,thr_owns]
+                skipListNoChange[t,t']
             }
         } else 
             atomLockOneNode[t,t',thr]
     } else thr.op.t = AddUnlock implies {
-        //thr.op.t = AddUnlock
-        atomUnlockOneNode[t,t',thr]
+        atomUnlockOneNodeThenFinish[t,t',thr]
     } else {
-        thr.op.t' = AddFind or thr.op.t' = DelFind
-        no thr.find.t'
-        noThreadsChangeExcept[t,t',thr]
-        skipListNoChange[t,t']
+        // restart
+        thr.op.t = AddRestart
+        some thr.(SkipList.owns.t) implies {
+            let n = nextNodeToUnlock[t, thr] {
+               skipListNoChangeExceptRemoveLock[t,t',thr,n]
+               threadsNoChange[t,t']
+            }
+        } else {
+            thr.op.t' = AddFind
+            no thr.find.t'
+            noThreadsChangeExcept[t,t',thr]
+            skipListNoChange[t,t']
+        }
     }
 }
 
@@ -291,22 +300,29 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
 								atomDel[t, t', thr]
 								thr.op.t' = DelUnlock
 						} else {
-								thr.op.t' = DelFind
-								no thr.find.t'
-								noThreadsChangeExcept[t, t', thr]
-								let thr_owns = thr.(SkipList.owns.t) |
-										skipListNoChangeExceptRemoveLock[t, t', thr, thr_owns]
+								thr.op.t' = DelRestart
+                thr.find.t' = thr.find.t // keep the find info for unlocking
+                noThreadsChangeExcept[t,t',thr]
+                skipListNoChange[t,t']
 						}
 				} else
 						atomLockOneNode[t, t', thr]
 		} else thr.op.t = DelUnlock implies {
-				
-				atomUnlockOneNode[t, t', thr]
+				atomUnlockOneNodeThenFinish[t, t', thr]
 		} else {
-        thr.op.t' = AddFind or thr.op.t' = DelFind
-        no thr.find.t'
-        noThreadsChangeExcept[t,t',thr]
-        skipListNoChange[t,t']
+        // restart
+        thr.op.t = DelRestart
+        some thr.(SkipList.owns.t) implies {
+            let n = nextNodeToUnlock[t, thr] {
+               skipListNoChangeExceptRemoveLock[t,t',thr,n]
+               threadsNoChange[t,t']
+            }
+        } else {
+            thr.op.t' = DelFind
+            no thr.find.t'
+            noThreadsChangeExcept[t,t',thr]
+            skipListNoChange[t,t']
+        }
     }
 }
 
@@ -340,23 +356,25 @@ fact init {
  * 1. make sure the scopes for Value,Node,Thread are matched! 
  * 2. use exactly to reduce variables and clauses whenever possible!
  * */
-// TODO: constrain the scope of Int and see if time complexity will decrease.
-pred neverIdle {
-//	all t: Time-last, thr: Thread | no thr.op.t implies some thr.op.(t.next)
-	some thr: Thread | AddFind+DelFind in thr.op.Time
-}
-
 run { 
     smallList
     some thr: Thread | thr.arg not in SkipList.nodes.first.key
-    some disj t1, t2: Thread | t1.arg = t2.arg 
-} for exactly 2 Thread, exactly 15 Time, exactly 10 Value, exactly 7 Node
+    some thr: Thread, t:Time-last | thr.op.t = AddRestart
+} for exactly 2 Thread, exactly 15 Time, exactly 6 Value, exactly 6 Node
 
 run {
-	//neverIdle
-	emptyList[]
-  some thr: Thread | thr.op.first in AddFind
-} for exactly 3 Thread, exactly 35 Time, exactly 5 Value, exactly 5 Node
+	smallList
+  // one thread does add
+  one thr: Thread | thr.op.first = AddFind and thr.arg not in SkipList.nodes.first.key
+                    and thr.height >= 2
+  // one thread does del
+  one thr: Thread | some t: Time-last | thr.op.first = DelFind and thr.op.t = DelLock
+
+  all disj thr1,thr2: Thread | thr1.arg != thr2.arg
+
+  all t: Time-last | some Thread.op.t
+  
+} for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactly 7 Node
 
 pred noDuplicatesProperty {
     all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
@@ -375,6 +393,8 @@ pred SkipListInOrderProperty{
     all t: Time, r: succsAtLevel[0,t] |
        lt[r.Node.key, (Node.r).key]
 }
+
+// TODO: what will happen if a thread is trying to delete a locked node?
 
 assert NoDuplicates {
     emptyList => noDuplicatesProperty
