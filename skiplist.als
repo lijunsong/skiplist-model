@@ -315,6 +315,7 @@ pred exampleList {
     lt[n1.key, n2.key] and lt[n2.key, n3.key]
     n3.key != n2.key and n2.key != n1.key
     (n1+n2+n3).key in N
+	SkipList.nodes.first = HeadNode+n1+n2+n3+TailNode
   }
 }
 
@@ -428,42 +429,42 @@ pred acquireDeletedNodeLock {
 
 // A thread should not unlock a node locked by another thread
 assert NoUnlockingOthersLock {
-    emptyList => not unlockOtherThreadsLock
+    exampleList => not unlockOtherThreadsLock
 }
 
 // Release all locks and reset the find field when restarting an operation
 assert CleanRestart {
-    emptyList => not uncleanRestart
+    exampleList=> not uncleanRestart
 }
 
 // No deleting a node that is locked
 assert NoDeleteLockedNode {
-    emptyList => not deleteLockedNode
+    exampleList => not deleteLockedNode
 }
 
 // No duplicates should ever exist in the skiplist
 assert NoDuplicates {
-    emptyList => noDuplicates
+    exampleList => noDuplicates
 }
 
 // No node should be locked by more than one thread
 assert ThreadMutualExclusion {
-    emptyList => threadMutualExclusion
+    exampleList => threadMutualExclusion
 }
 
 // Elements in the skiplist should be in order
 assert SkipListInOrder {
-    emptyList => skipListInOrder
+    exampleList => skipListInOrder
 }
 
 // Higher levels are contained in lower levels
 assert SkipListProperty {
-    emptyList => skipListProperty
+    exampleList => skipListProperty
 }
 
 // No cycles
 assert SkipListAcyclic {
-    emptyList => skipListAcyclic
+    exampleList => skipListAcyclic
 }
 
 assert NoAcquireDeletedNodeLock {
@@ -477,26 +478,26 @@ assert NoAcquireDeletedNodeLock {
 /* the two run commands will produce instances where threads race and conflict with each other */
 run threadsRace for exactly 2 Thread, exactly 15 Time, exactly 8 Value, exactly 8 Node
 
-run threadsRace2 for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactly 7 Node
+run threadsRace2 for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactly 8 Node
 
 /* Model's internal property */
 -- restart states should clean everything, including SkipList.own and thread.find
-check CleanRestart for exactly 3 Thread, exactly 20 Time, exactly 5 Value, exactly 5 Node
+check CleanRestart for exactly 3 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
 --this one takes 500s
-check NoUnlockingOthersLock for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
+check NoUnlockingOthersLock for exactly 3 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
-check NoDeleteLockedNode for exactly 3 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
+check NoDeleteLockedNode for exactly 3 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
-check NoAcquireDeletedNodeLock for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check NoAcquireDeletedNodeLock for exactly 2 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
 /* skipList property */
-check NoDuplicates for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check NoDuplicates for exactly 2 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
-check ThreadMutualExclusion for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check ThreadMutualExclusion for exactly 2 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
 check SkipListProperty for exactly 3 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
-check SkipListInOrder for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check SkipListInOrder for exactly 2 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
 
-check SkipListAcyclic for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+check SkipListAcyclic for exactly 2 Thread, exactly 10 Time, exactly 8 Value, exactly 8 Node
