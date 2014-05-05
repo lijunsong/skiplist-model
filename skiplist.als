@@ -2,7 +2,7 @@ open util/ordering[Time]
 open util/ordering[Value]
 open util/ternary
 
-sig Value{}
+sig Value {}
 sig N in Value {}
 fact { N = Value - first - last }
 
@@ -60,7 +60,7 @@ one sig SkipList {
 	// At most one owner of a locked node
 	//all t: Time, n: nodes.t | lone owns.t.n
 	// No locking nodes not in list...
-	all t: Time, n: Node - nodes.t | no owns.t.n
+	//all t: Time, n: Node - nodes.t | no owns.t.n
 }
 
 fun succsAtLevel(lv: Int, t: Time): set Node->Node {
@@ -188,7 +188,7 @@ fun nextNodeToLock(t: Time, thr: Thread) : Node {
 fun nextNodeToUnlock(t: Time, thr: Thread) : Node {
     let allPredsNode = ~(thr.find.t.Node) { // type: Int->Node
         let nextLockedNodeSeq = allPredsNode :> SkipList.owns.t[thr] {
-            let num = max[nextLockedNodeSeq.Node] {
+            let num = min[nextLockedNodeSeq.Node] {
                 num.nextLockedNodeSeq
             }
         }
@@ -383,21 +383,36 @@ run {
 } for exactly 3 Thread, exactly 24 Time, exactly 10 Value, exactly 7 Node
 
 pred noDuplicatesProperty {
-    all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
+  all t: Time | all disj n1, n2: SkipList.nodes.t | n1.key != n2.key
 }
 
 pred mutualExclusionProperty {
-    all t: Time | all n: SkipList.nodes.t | lone owns.t.n
+  all t: Time | all n: SkipList.nodes.t | lone owns.t.n
 }
 
-
 pred SkipListProperty {
-	all t: Time, lv2, lv1: Int | lv1 >= 0 and lv2 >= lv1 implies lv2.(Node.succs.t) in lv1.(Node.succs.t)
+	all t: Time, lv2, lv1: Int |
+		lv1 >= 0 and lv2 >= lv1 implies lv2.(Node.succs.t) in lv1.(Node.succs.t)
 }
 
 pred SkipListInOrderProperty{
-    all t: Time, r: succsAtLevel[0,t] |
-       lt[r.Node.key, (Node.r).key]
+	all t: Time, r: succsAtLevel[0,t] |
+		lt[r.Node.key, (Node.r).key]
+}
+
+pred AcyclicProperty {
+	//all t: Time, n: Node | n not in n.^(select13[succs.t])
+	//all n: Node | n not in n.^(select13[succs.Time])
+	no ^(select13[succs.Time]) & iden
+}
+
+pred SomeDeletionOfLockedNodes {
+	some t: Time | some disj thr1, thr2: Thread | some n: SkipList.nodes.t {
+		thr1->n->t in SkipList.owns
+		thr2.op.t = DelLock
+		thr2.arg = n.key
+		thr2.op.(t.next) = DelUnlock
+	}
 }
 
 // TODO: what will happen if a thread is trying to delete a locked node?
@@ -431,23 +446,36 @@ assert restartWithCleanState {
 check restartWithCleanState
 for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
+run {smallList and SomeDeletionOfLockedNodes }
+for exactly 2 Thread, exactly 15 Time, exactly 5 Value, exactly 5 Node
+
+
 assert NoDuplicates {
-    emptyList => noDuplicatesProperty
+	emptyList => noDuplicatesProperty
 }
 
 assert ThreadsMutualExclusive {
-    emptyList => mutualExclusionProperty
+	emptyList => mutualExclusionProperty
 }
 
 assert SkipListInOrder {
-    emptyList => SkipListInOrderProperty
+	emptyList => SkipListInOrderProperty
 }
 
-check NoDuplicates for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+assert SkipListP {
+	emptyList => SkipListProperty
+}
+
+assert Acyclic {
+	emptyList => AcyclicProperty
+}
+
+check NoDuplicates for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
 check ThreadsMutualExclusive for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
-check { emptyList implies SkipListProperty }
-for exactly 2 Thread, exactly 12 Time, exactly 5 Value, exactly 5 Node
+check SkipListP for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
 
-check SkipListInOrder for exactly 3 Thread, 10 Time, exactly 5 Value, exactly 5 Node
+check SkipListInOrder for exactly 3 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
+
+check Acyclic for exactly 2 Thread, exactly 10 Time, exactly 5 Value, exactly 5 Node
