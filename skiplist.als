@@ -268,7 +268,9 @@ pred doNextDelOp(t, t': Time, thr: Thread) {
         }
     } else thr.op.t = DelLock implies {
         areAllPredsLockedBy[t, thr] implies {
-            predsAndSuccs[t, thr] = thr.find.t implies {
+            predsAndSuccs[t, thr] = thr.find.t and 
+            thr.arg not in (Thread-thr).(SkipList.owns.t).key implies {
+                // find does not change and the node is not locked by other threads.
                 atomDel[t, t', thr]
                 thr.op.t' = DelUnlock
             } else {
