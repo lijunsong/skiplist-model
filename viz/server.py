@@ -9,6 +9,9 @@ app.debug = True
 
 @app.route('/')
 def viz():
+    if not os.path.exists('data.txt'):
+        f = open('data.txt', 'w')
+        f.close()
     return render_template('viz.html');
 
 @app.route('/data.txt')
