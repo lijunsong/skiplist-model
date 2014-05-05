@@ -1,0 +1,87 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{fancyhdr,lastpage}
+\usepackage{graphicx}
+
+\pagestyle{fancy}
+\lhead{Junsong Li and Vikram Saraph}
+\rhead{Final Project}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{conj}{Conjecture}
+\newtheorem{lem}{Lemma}
+\begin{document}
+
+\begin{center}
+Final Project -- The Lazy Skiplist
+\end{center}
+
+\noindent
+\textbf{Introduction}
+
+A skiplist is a probabilistic data structure that allows fasting searching of elements. It consists of a hierarchy of sorted linked lists, with elements in each level contained in all lower levels. The bottom most level contains all elements; therefore, searching this level is equivalent to searching in an ordinary linked list. In higher levels, one is able to ``skip" over many elements at a time, since there are fewer elements and thus fewer links between them. One searches a skiplist by starting at the topmost level, and continually descending until the desired value is found (or not found). A value can also be added or deleted by searching the skiplist for either its location or for the location where is would be. Added values are assigned random heights according to a probability distribution, where higher heights are exponentially less likely than lower ones. Here is an example of a skiplist.
+
+\begin{center}
+\includegraphics[scale=0.6]{smallList.png}
+\end{center}
+
+Skiplists can be made concurrent. In this project, we model the lazy skiplist, which is a concurrent, lock-based implementation of a skiplist with linearizable, lock-free \verb|add| and \verb|delete| methods. \\
+
+\noindent
+\textbf{Design Choices}
+
+\noindent
+\emph{Why does the model use both nodes and values? Why not just values?}
+
+An important property of the skiplist is that it should never contain duplicate values. If we modeled only values, it would be trivial to ensure that no duplicate values appear in the list, since instances never contain duplicate atoms. We wanted to allow the possibility of two nodes referring to the same value. Modeling nodes with values is more faithful to the real skiplist implementation. \\
+
+\noindent
+\emph{Why was a time-based model chosen over a state-based one to model the skiplist's dynamic behavior?}
+
+Using a time-based model made it easier to reason about the skiplist as we wrote and designed our model. We originally tried a state-based one, but we quickly ran into difficulties with expressing constraints. For example, it was sometimes unclear over what domain we should be quantifying. Adding the \verb|Time| signature made modeling the skiplist much more straightforward. \\
+
+\noindent
+\emph{Why does} \verb|SkipList| \emph{have so few constraints? What is actually making} \verb|SkipList| \emph{a skiplist?}
+
+The initial structure of \verb|SkipList| is defined in the \verb|emptyList| predicate (or \verb|exampleList| predicate). All other initial information is defined in the \verb|init| predicate. From then on, \verb|SkipList| is constrained entirely by the \verb|trace| fact, which defines how the \verb|SkipList| evolves over time. We decided it is correct to not enforce structural constraints on the skiplist, since (assuming our model is correct) . Adding explicit constraints would overconstrain the system and would not reveal possible bugs in the trace. Instead, we rewrote the structural constraints as \verb|assert|-\verb|check| statements. \\
+
+\noindent
+\emph{Why is the} \verb|find| \emph{field of} \verb|Thread| \emph{necessary?}
+
+The \verb|find| field is used for validation. It records a value's successors and predecessors before locks are acquired for addition or deletion. After locks are acquired, the value's successors and predecessors are compared against \verb|find|. If nothing has changed, then the skiplist is updated. If something has changed, then the operation aborts by releases its locks one by one, and restarts its operation. Modeling validation is faithful to the skiplist implementation, and is also necessary to ensure correctness of the skiplist's operations. Indeed, without validation, duplicate values could appear in the skiplist. \\
+
+\noindent
+\emph{Why is there no explicit blocking state for threads?}
+
+We chose not to model a thread blocking state, because such a state transition is not interesting. Nothing about the instance would change during this transition, other than the consuming of a valuable time step. \\
+
+\noindent
+\textbf{Challenges}
+
+\begin{itemize}
+\item Due to the inherent complexity of the skiplist, scope size was often an issue. Since we modeled most atomic steps of each operation separately, each operation takes several atomic steps to complete, and thus requires several \emph{time} steps to complete. We needed a large \verb|Time| scope for this reason, but we were usually limited to 20-25 for generating valid traces, and 10-15 for checking assertions. Any higher and statements would take more than a few minutes to run. The scope sizes of \verb|Value| and \verb|Node| were not an issue, but increasing the size of \verb|Thread| caused running times to explode, probably because the number of thread interleavings also explodes. We limited our instances to 2 or 3 threads.
+
+\item There was more than one occasion (or instance!) where we overconstrained our model. Overconstraining is particularly troublesome for models with traces. It is hard to detect because rather than raising red flags, Alloy will simply not show bad instances that are otherwise ruled out by (seemingly) extraneous constraints. For example, our original model allowed for deletion of locked nodes, but this never showed up as a counterexample, because we also had a constraint forbidding threads to lock nodes not in the skiplist.
+
+\item The abstract-concrete paradigm from Chapter 6 memory model was more difficult to adapt to our model than anticipated. The memory model is state-based, while ours is time-based, so its not clear how to write the \verb|alpha| translation function between an abstract list model and our concrete skiplist implementation, and its not clear how to write the checks for equivalence.
+\end{itemize}
+
+\noindent
+\textbf{Properties}
+
+See the comments on assertions in the model.
+
+\noindent
+\textbf{Appendix}
+
+This is the skiplist implementation we modeled. See Section 14.3 in \emph{Multiprocessor Programming} by Herlihy and Shavit for more details.
+
+\begin{center}
+\includegraphics{add.png}
+\end{center}
+
+\includegraphics{delete.png}
+
+\end{document}
